@@ -13,6 +13,12 @@ services:
       - LOCALHUB_DATA_DIR=/data
       - LOCALHUB_HTTP_PORT=11030
       - LOCALHUB_LOG_LEVEL=${LOCALHUB_LOG_LEVEL:-info}
+      # 首次启动初始化管理员（单管理员）；初始化成功后建议移除口令变量
+      - LOCALHUB_ADMIN_USERNAME=${LOCALHUB_ADMIN_USERNAME:-admin}
+      - LOCALHUB_ADMIN_PASSWORD=${LOCALHUB_ADMIN_PASSWORD:-}
+      # 会话有效期与 Cookie 安全标记（HTTPS 前置代理时设为 1）
+      - LOCALHUB_SESSION_TTL=${LOCALHUB_SESSION_TTL:-12h}
+      - LOCALHUB_COOKIE_SECURE=${LOCALHUB_COOKIE_SECURE:-0}
     volumes:
       # 冒号左侧由部署者自定义，可与 compose 文件所在目录不同
       - ${LOCALHUB_DATA_DIR:-./localhub-data}:/data

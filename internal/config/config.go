@@ -30,6 +30,17 @@ type Config struct {
 
 	WriteCheckFatal    bool
 	WriteCheckInterval time.Duration
+
+	// 账户与会话（P1.1）。
+	AdminUsername string // 管理员用户名，默认 admin
+	AdminPassword string // 仅在管理员尚未初始化时用于首次初始化，不会覆盖已有账户
+	SessionTTL    time.Duration
+	CookieSecure  bool
+	TrustProxy    bool
+
+	LoginMaxFailures int
+	LoginWindow      time.Duration
+	LoginLockout     time.Duration
 }
 
 // Load 从进程环境读取配置。
@@ -143,6 +154,65 @@ func LoadFrom(env []string) (*Config, error) {
 	if c.WriteCheckFatal, err = parseBool("WRITE_CHECK_FATAL", true); err != nil {
 		problems = append(problems, err.Error())
 	}
+	if c.CookieSecure, err = parseBool("LOCALHUB_COOKIE_SECURE", false); err != nil {
+		problems = append(problems, err.Error())
+	}
+	if c.TrustProxy, err = parseBool("LOCALHUB_TRUST_PROXY", false); err != nil {
+		problems = append(problems, err.Error())
+	}
+
+	// —— 账户与会话（P1.1）——
+	c.AdminUsername = get("LOCALHUB_ADMIN_USERNAME", "admin")
+	uname, err := authNameOK(c.AdminUsername)
+	if err != nil {
+		bad("LOCALHUB_ADMIN_USERNAME=%q 非法：%v", c.AdminUsername, err)
+	}
+	c.AdminUsername = uname
+
+	c.AdminPassword = m["LOCALHUB_ADMIN_PASSWORD"]
+	if c.AdminPassword != "" {
+		if err := authPasswordOK(c.AdminPassword); err != nil {
+			bad("LOCALHUB_ADMIN_PASSWORD 非法：%v", err)
+		}
+	}
+
+	c.SessionTTL = 12 * time.Hour
+	if v, ok := m["LOCALHUB_SESSION_TTL"]; ok && strings.TrimSpace(v) != "" {
+		d, err := time.ParseDuration(strings.TrimSpace(v))
+		if err != nil || d < 5*time.Minute || d > 30*24*time.Hour {
+			bad("LOCALHUB_SESSION_TTL=%q 非法，需为 5m-720h 的时长（如 12h）", v)
+		} else {
+			c.SessionTTL = d
+		}
+	}
+
+	c.LoginMaxFailures = 5
+	if v, ok := m["LOCALHUB_LOGIN_MAX_FAILURES"]; ok && strings.TrimSpace(v) != "" {
+		n, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil || n < 1 || n > 100 {
+			bad("LOCALHUB_LOGIN_MAX_FAILURES=%q 非法，需为 1-100 的整数", v)
+		} else {
+			c.LoginMaxFailures = n
+		}
+	}
+	c.LoginWindow = 15 * time.Minute
+	if v, ok := m["LOCALHUB_LOGIN_WINDOW"]; ok && strings.TrimSpace(v) != "" {
+		d, err := time.ParseDuration(strings.TrimSpace(v))
+		if err != nil || d < time.Minute || d > 24*time.Hour {
+			bad("LOCALHUB_LOGIN_WINDOW=%q 非法，需为 1m-24h 的时长", v)
+		} else {
+			c.LoginWindow = d
+		}
+	}
+	c.LoginLockout = 15 * time.Minute
+	if v, ok := m["LOCALHUB_LOGIN_LOCKOUT"]; ok && strings.TrimSpace(v) != "" {
+		d, err := time.ParseDuration(strings.TrimSpace(v))
+		if err != nil || d < time.Minute || d > 24*time.Hour {
+			bad("LOCALHUB_LOGIN_LOCKOUT=%q 非法，需为 1m-24h 的时长", v)
+		} else {
+			c.LoginLockout = d
+		}
+	}
 
 	if c.PUID == 0 && !c.AllowRoot {
 		bad("PUID=0 被拒绝：业务进程不得以 root 运行；如确需如此，必须同时设置 ALLOW_ROOT=1")
@@ -163,6 +233,33 @@ func LoadFrom(env []string) (*Config, error) {
 		return nil, fmt.Errorf("配置校验失败：%s", strings.Join(problems, "；"))
 	}
 	return c, nil
+}
+
+// authNameOK 校验用户名（避免空白与超长）。
+func authNameOK(v string) (string, error) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return "", fmt.Errorf("用户名不能为空")
+	}
+	if len([]byte(v)) > 64 {
+		return "", fmt.Errorf("用户名过长")
+	}
+	if strings.ContainsAny(v, " \t\r\n") {
+		return "", fmt.Errorf("用户名不能包含空白字符")
+	}
+	return v, nil
+}
+
+// authPasswordOK 校验初始口令策略，与 internal/auth 的规则保持一致（长度 12-72 字节）。
+func authPasswordOK(v string) error {
+	n := len([]byte(v))
+	if n < 12 || n > 72 {
+		return fmt.Errorf("长度需在 12-72 字节之间（当前 %d 字节）", n)
+	}
+	if strings.TrimSpace(v) == "" {
+		return fmt.Errorf("口令不能为空")
+	}
+	return nil
 }
 
 // ListenAddr 返回 http 监听地址。

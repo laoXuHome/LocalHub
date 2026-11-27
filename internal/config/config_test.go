@@ -3,6 +3,7 @@ package config
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDefaults(t *testing.T) {
@@ -28,6 +29,18 @@ func TestDefaults(t *testing.T) {
 	if !c.WriteCheckFatal {
 		t.Error("默认写自检应为致命")
 	}
+	if c.AdminUsername != "admin" {
+		t.Errorf("默认管理员用户名应为 admin，得到 %q", c.AdminUsername)
+	}
+	if c.SessionTTL != 12*time.Hour {
+		t.Errorf("默认会话有效期应为 12h，得到 %v", c.SessionTTL)
+	}
+	if c.LoginMaxFailures != 5 || c.LoginWindow != 15*time.Minute || c.LoginLockout != 15*time.Minute {
+		t.Errorf("默认登录限制参数不符：%d %v %v", c.LoginMaxFailures, c.LoginWindow, c.LoginLockout)
+	}
+	if c.CookieSecure || c.TrustProxy {
+		t.Error("默认不要求 Secure Cookie、默认不信任代理头")
+	}
 }
 
 func TestInvalidConfigIsRejected(t *testing.T) {
@@ -43,6 +56,13 @@ func TestInvalidConfigIsRejected(t *testing.T) {
 		{"PUID 为 0 被拒", []string{"PUID=0"}, "ALLOW_ROOT=1"},
 		{"PUID 非法", []string{"PUID=abc"}, "PUID"},
 		{"布尔值非法", []string{"WRITE_CHECK_FATAL=maybe"}, "WRITE_CHECK_FATAL"},
+		{"初始口令过短", []string{"LOCALHUB_ADMIN_PASSWORD=short"}, "LOCALHUB_ADMIN_PASSWORD"},
+		{"用户名含空白", []string{"LOCALHUB_ADMIN_USERNAME=a b"}, "LOCALHUB_ADMIN_USERNAME"},
+		{"会话时长非法", []string{"LOCALHUB_SESSION_TTL=1m"}, "LOCALHUB_SESSION_TTL"},
+		{"失败阈值非法", []string{"LOCALHUB_LOGIN_MAX_FAILURES=0"}, "LOCALHUB_LOGIN_MAX_FAILURES"},
+		{"窗口时长非法", []string{"LOCALHUB_LOGIN_WINDOW=1s"}, "LOCALHUB_LOGIN_WINDOW"},
+		{"锁定时长非法", []string{"LOCALHUB_LOGIN_LOCKOUT=99h"}, "LOCALHUB_LOGIN_LOCKOUT"},
+		{"Cookie 布尔非法", []string{"LOCALHUB_COOKIE_SECURE=yes-please"}, "LOCALHUB_COOKIE_SECURE"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

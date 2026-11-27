@@ -96,6 +96,31 @@ docker exec localhub /localhub --healthcheck; echo "exit=$?"
 }
 ```
 
+## 5.1 管理员与登录（P1.1）
+
+首次启动需要用环境变量提供初始口令：
+
+```bash
+# .env
+LOCALHUB_ADMIN_USERNAME=admin
+LOCALHUB_ADMIN_PASSWORD=<12-72 字节的口令>
+```
+
+- 只有**管理员表为空**时才初始化；已存在管理员时该变量被忽略，不会覆盖现有口令。
+- 初始化完成后建议从 `.env` 移除 `LOCALHUB_ADMIN_PASSWORD`，后续改密走界面/接口。
+- 单管理员，不提供注册与多用户；口令以 bcrypt（cost 12）存库，库中不存在明文。
+- 会话：服务端会话（`sessions` 表，令牌以 SHA-256 存库，Cookie 为 HttpOnly + SameSite=Lax），默认 12h 到期，退出即吊销。
+- 通过 HTTPS 访问时设 `LOCALHUB_COOKIE_SECURE=1`；在反向代理后设 `LOCALHUB_TRUST_PROXY=1` 以按 X-Forwarded-For 识别客户端 IP。
+- 登录失败限制：默认同一 IP+用户名 15 分钟内失败 5 次，锁定 15 分钟（`LOCALHUB_LOGIN_MAX_FAILURES/WINDOW/LOCKOUT`）。
+
+公开与管理员边界：
+
+| 路径 | 访客 | 管理员 |
+|---|---|---|
+| `/`、`/health`、`/api/auth/status` | 可访问 | 可访问 |
+| `/api/auth/login` | 可访问（受限速） | — |
+| `/api/auth/logout`、`/api/auth/password`、`/api/admin/*` | 401 | 可访问 |
+
 ## 6. 升级与重建
 
 ```bash

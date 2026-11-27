@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/laoXuHome/LocalHub/internal/auth"
 	"github.com/laoXuHome/LocalHub/internal/buildinfo"
 	"github.com/laoXuHome/LocalHub/internal/config"
 	"github.com/laoXuHome/LocalHub/internal/datadir"
@@ -55,6 +56,7 @@ type server struct {
 	state *writeState
 	start time.Time
 	root  string
+	auth  *authState
 }
 
 // Run 执行 app 角色：写自检、打开数据库并迁移、提供 /health 与静态页面。
@@ -126,6 +128,14 @@ func Run(cfg *config.Config, log *slog.Logger) int {
 		}
 	}()
 
+	if app.db != nil {
+		app.auth = newAuthState(app)
+		app.bootstrapAdmin()
+		go app.sessionJanitor()
+	} else {
+		log.Warn("数据库不可用，认证能力将以不可用状态运行", slog.String("code", "AUTH_UNAVAILABLE"))
+	}
+
 	// 周期性写自检：挂载变化、磁盘满盘都能反映到健康状态。
 	go func() {
 		t := time.NewTicker(cfg.WriteCheckInterval)
@@ -144,13 +154,9 @@ func Run(cfg *config.Config, log *slog.Logger) int {
 		}
 	}()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", app.handleHealth)
-	mux.Handle("/", app.staticHandler())
-
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr(),
-		Handler:           app.logMiddleware(mux),
+		Handler:           app.logMiddleware(app.routes()),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
@@ -262,6 +268,74 @@ func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
+// routes 组装路由：公开接口 + 管理员专属接口（后端强制鉴权）。
+func (s *server) routes() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", s.handleHealth)
+
+	// 公开：登录状态查询、登录。
+	mux.HandleFunc("/api/auth/status", s.handleAuthStatus)
+	mux.HandleFunc("/api/auth/login", s.handleLogin)
+
+	// 管理员专属：退出、改密、管理员信息。
+	mux.Handle("/api/auth/logout", s.requireAdmin(http.HandlerFunc(s.handleLogout)))
+	mux.Handle("/api/auth/password", s.requireAdmin(http.HandlerFunc(s.handleChangePassword)))
+	mux.Handle("/api/admin/", s.requireAdmin(http.HandlerFunc(s.handleAdminWhoami)))
+
+	// 其余为公开静态页面（访客可访问），/api/ 下未定义的路径由静态处理器返回 404。
+	mux.Handle("/", s.staticHandler())
+	return mux
+}
+
+func (s *server) bootstrapAdmin() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	n, err := s.auth.store.CountAdmins(ctx)
+	if err != nil {
+		s.log.Error("检查管理员初始化状态失败", slog.String("error", err.Error()), slog.String("code", "ADMIN_CHECK_FAILED"))
+		return
+	}
+	if n > 0 {
+		if s.cfg.AdminPassword != "" {
+			s.log.Warn("管理员已存在，忽略 LOCALHUB_ADMIN_PASSWORD（不会覆盖已有账户）")
+		}
+		return
+	}
+	if s.cfg.AdminPassword == "" {
+		s.log.Warn("管理员尚未初始化",
+			slog.String("code", "ADMIN_NOT_INITIALIZED"),
+			slog.String("hint", "设置 LOCALHUB_ADMIN_PASSWORD（12-72 字节）后重启容器完成首次初始化；已初始化后该变量可移除"),
+		)
+		return
+	}
+	hash, err := auth.HashPassword(s.cfg.AdminPassword)
+	if err != nil {
+		s.log.Error("初始口令不符合策略，管理员未创建", slog.String("error", err.Error()), slog.String("code", "ADMIN_PASSWORD_INVALID"))
+		return
+	}
+	if err := s.auth.store.CreateAdmin(ctx, s.cfg.AdminUsername, hash, time.Now()); err != nil {
+		s.log.Error("管理员初始化失败", slog.String("error", err.Error()), slog.String("code", "ADMIN_INIT_FAILED"))
+		return
+	}
+	s.log.Info("管理员初始化完成", slog.String("username", s.cfg.AdminUsername), slog.String("code", "ADMIN_INITIALIZED"))
+}
+
+// sessionJanitor 定时清理过期会话，避免会话表无限增长。
+func (s *server) sessionJanitor() {
+	t := time.NewTicker(time.Hour)
+	defer t.Stop()
+	for range t.C {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		n, err := s.auth.sessions.PurgeExpired(ctx, time.Now())
+		cancel()
+		if err != nil {
+			s.log.Warn("清理过期会话失败", slog.String("error", err.Error()))
+		} else if n > 0 {
+			s.log.Info("清理过期会话", slog.Int64("count", n))
+		}
+	}
+}
+
 func (s *server) staticHandler() http.Handler {
 	sub, err := fs.Sub(static.FS, "dist")
 	if err != nil {
@@ -288,6 +362,8 @@ func (s *server) staticHandler() http.Handler {
 func (s *server) logMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "same-origin")
 		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(sw, r)
 		s.log.Info("http 请求",

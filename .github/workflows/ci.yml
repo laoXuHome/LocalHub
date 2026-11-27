@@ -125,6 +125,7 @@ jobs:
           export LOCALHUB_IMAGE=localhub:amd64
           export LOCALHUB_PORT=18090
           export LOCALHUB_DATA_DIR="$PWD/.ci-compose"
+          export LOCALHUB_ADMIN_PASSWORD="Ci-Smoke-Passw0rd!2026"
           docker compose config > ci-artifacts/compose-config.txt
           docker compose up -d 2>&1 | tee ci-artifacts/compose-up.txt
           code=000
@@ -136,6 +137,33 @@ jobs:
           docker compose ps -a | tee ci-artifacts/compose-ps.txt
           echo "compose /health HTTP $code"
           cat ci-artifacts/health-compose.json
+
+          # P1.1 容器级鉴权冒烟：访客 401、登录成功、管理员接口 200、退出后 401
+          echo "--- auth smoke ---" | tee ci-artifacts/auth-smoke.txt
+          curl -s --max-time 3 http://127.0.0.1:18090/api/auth/status | tee -a ci-artifacts/auth-smoke.txt
+          echo >> ci-artifacts/auth-smoke.txt
+          guest=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/admin/whoami)
+          echo "guest whoami HTTP $guest" | tee -a ci-artifacts/auth-smoke.txt
+          test "$guest" = "401"
+          login=$(curl -s --max-time 5 -c compose-cookies.txt -o /dev/null -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            -d "{\"username\":\"admin\",\"password\":\"$LOCALHUB_ADMIN_PASSWORD\"}" \
+            http://127.0.0.1:18090/api/auth/login)
+          echo "login HTTP $login" | tee -a ci-artifacts/auth-smoke.txt
+          test "$login" = "200"
+          who=$(curl -s --max-time 3 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/whoami | tee -a ci-artifacts/auth-smoke.txt)
+          echo >> ci-artifacts/auth-smoke.txt
+          echo "$who" | grep -q '"role":"admin"'
+          logout=$(curl -s --max-time 3 -b compose-cookies.txt -X POST -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/auth/logout)
+          echo "logout HTTP $logout" | tee -a ci-artifacts/auth-smoke.txt
+          after=$(curl -s --max-time 3 -b compose-cookies.txt -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/admin/whoami)
+          echo "after logout whoami HTTP $after" | tee -a ci-artifacts/auth-smoke.txt
+          test "$after" = "401"
+          wrong=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' \
+            -H 'Content-Type: application/json' -d '{"username":"admin","password":"wrong-password-12345"}' \
+            http://127.0.0.1:18090/api/auth/login)
+          echo "wrong password HTTP $wrong" | tee -a ci-artifacts/auth-smoke.txt
+          test "$wrong" = "401"
           docker compose down 2>&1 | tee -a ci-artifacts/compose-up.txt
           test "$code" = "200"
 
