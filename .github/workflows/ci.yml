@@ -171,6 +171,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: p0-verification-${{ github.sha }}
+          name: verification-${{ github.sha }}
           path: ci-artifacts
           if-no-files-found: warn
