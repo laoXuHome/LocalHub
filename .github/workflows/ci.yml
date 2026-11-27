@@ -94,7 +94,7 @@ jobs:
       - name: T12 专项验证（amd64）
         run: |
           chmod +x scripts/t12.sh
-          bash scripts/t12.sh localhub:amd64 linux/amd64 2>&1 | tee ci-artifacts/t12.log
+          timeout 600 bash scripts/t12.sh localhub:amd64 linux/amd64 2>&1 | tee ci-artifacts/t12.log
           test ${PIPESTATUS[0]} -eq 0
 
       - name: arm64 运行验证（QEMU）
@@ -103,8 +103,9 @@ jobs:
           docker run -d --name lh-arm64 --platform linux/arm64 \
             -p 18085:11030 -v "$PWD/.ci-data:/data" \
             -e PUID=1000 -e PGID=1000 localhub:arm64
+          code=000
           for i in $(seq 1 40); do
-            code=$(curl -s -o ci-artifacts/health-arm64.json -w '%{http_code}' http://127.0.0.1:18085/health || true)
+            code=$(curl -s --max-time 2 -o ci-artifacts/health-arm64.json -w '%{http_code}' http://127.0.0.1:18085/health || true)
             [ "$code" = "200" ] && break
             sleep 0.5
           done

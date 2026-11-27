@@ -34,7 +34,7 @@ PY
 wait_health() { # $1=port $2=outfile $3=期望状态码（默认 200）
   local i code
   for i in $(seq 1 40); do
-    code=$(curl -s -o "$2" -w '%{http_code}' "http://127.0.0.1:$1/health" || true)
+    code=$(curl -s --max-time 2 -o "$2" -w '%{http_code}' "http://127.0.0.1:$1/health" || true)
     if [ "$code" = "${3:-200}" ]; then echo "$code"; return 0; fi
     sleep 0.5
   done
@@ -43,12 +43,12 @@ wait_health() { # $1=port $2=outfile $3=期望状态码（默认 200）
 
 # ---------- T1：distroless 镜像可启动，且确实没有 Shell ----------
 log "T1 distroless 启动 / 无 Shell"
-if docker run --rm --platform "$PLATFORM" "$IMAGE" /localhub --version > "$TMP/version.txt" 2>&1; then
+if timeout 30 docker run --rm --platform "$PLATFORM" "$IMAGE" --version > "$TMP/version.txt" 2>&1; then
   pass "T1a --version 可执行" "$(head -1 "$TMP/version.txt")"
 else
   fail "T1a --version 可执行" "$(tail -2 "$TMP/version.txt")"
 fi
-if docker run --rm --platform "$PLATFORM" --entrypoint /bin/sh "$IMAGE" -c true > "$TMP/shell.txt" 2>&1; then
+if timeout 30 docker run --rm --platform "$PLATFORM" --entrypoint /bin/sh "$IMAGE" -c true > "$TMP/shell.txt" 2>&1; then
   fail "T1b 镜像内不应存在 /bin/sh" "意外执行成功"
 else
   pass "T1b 镜像内无 /bin/sh" "$(head -1 "$TMP/shell.txt")"
@@ -84,7 +84,7 @@ ROOT=$(jget "$TMP/health.json" process.is_root)
 # ---------- T5：缺少 CAP_CHOWN/SETUID/SETGID 时给出明确错误 ----------
 log "T5 缺少能力时入口明确报错"
 mkdir -p "$TMP/data2"; chmod 0755 "$TMP/data2"
-docker run --rm --platform "$PLATFORM" --cap-drop ALL \
+timeout 30 docker run --rm --platform "$PLATFORM" --cap-drop ALL \
   -v "$TMP/data2:/data" -e PUID=1000 -e PGID=1000 "$IMAGE" > "$TMP/caps.txt" 2>&1
 RC=$?
 if [ "$RC" -ne 0 ] && grep -qE 'CHOWN_FAILED|CAP_|PRIVILEGE_DENIED|属主修正失败' "$TMP/caps.txt"; then
@@ -111,10 +111,11 @@ echo "$LOGS" | grep -q '转发给业务进程' \
 # ---------- T7：子进程异常退出时容器退出码正确 ----------
 log "T7 子进程失败时退出码透传"
 mkdir -p "$TMP/data3"; chmod 0755 "$TMP/data3"
-docker run --rm --platform "$PLATFORM" -v "$TMP/data3:/data" \
-  -e PUID=1000 -e PGID=1000 -e LOCALHUB_HTTP_PORT=80 "$IMAGE" > "$TMP/fail.txt" 2>&1
+# 用非法监听地址制造 app 启动即失败，验证 init 透传非零退出码
+timeout 30 docker run --rm --platform "$PLATFORM" -v "$TMP/data3:/data" \
+  -e PUID=1000 -e PGID=1000 -e LOCALHUB_HTTP_ADDR=256.256.256.256 "$IMAGE" > "$TMP/fail.txt" 2>&1
 RC=$?
-[ "$RC" = "1" ] && pass "T7 子进程退出码透传" "容器 exit=1（非 root 绑定 80 端口失败）" \
+[ "$RC" = "1" ] && pass "T7 子进程退出码透传" "容器 exit=1（非法监听地址导致 app 启动失败）" \
   || fail "T7 子进程退出码透传" "exit=$RC $(tail -1 "$TMP/fail.txt")"
 
 # ---------- T8：/data 不可写时健康状态反映异常 ----------
@@ -155,7 +156,7 @@ if [ "$RC" -ne 0 ] && grep -q '越界' "$TMP/escape.json"; then
 else
   fail "T10a 逃逸被拒绝" "exit=$RC $(tail -1 "$TMP/escape.json")"
 fi
-docker run --rm --platform "$PLATFORM" -v "$TMP/data1:/data" \
+timeout 30 docker run --rm --platform "$PLATFORM" -v "$TMP/data1:/data" \
   -e LOCALHUB_DATA_DIR=/data/escape -e LOCALHUB_DATA_ALLOWED_ROOT=/data \
   -e PUID=1000 -e PGID=1000 "$IMAGE" > "$TMP/escape-run.txt" 2>&1
 RC=$?
