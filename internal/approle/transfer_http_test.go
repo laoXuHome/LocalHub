@@ -126,6 +126,24 @@ func TestImportPreviewThenExecuteWithDuplicates(t *testing.T) {
 	if sum := sel.json(t); int(sum["created"].(float64)) != 1 || int(sum["skipped"].(float64)) != 1 {
 		t.Fatalf("选定导入结果不符：%v", sum)
 	}
+
+	// 批内重复 + overwrite：第二条应覆盖刚创建的第一条，而不是再新增一条
+	batchHTML := `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<DL>
+<DT><A HREF="https://batch.example.com/">批内一</A>
+<DT><A HREF="https://batch.example.com/">批内二</A>
+</DL>`
+	beforeBatch := listTotal(t, ts, ck)
+	batch := do(t, ts, "POST", "/api/admin/bookmarks/import/execute", importJSONBody(t, "auto", []byte(batchHTML), map[string]any{"duplicates": "overwrite"}), ck, nil)
+	if batch.code != http.StatusOK {
+		t.Fatalf("批内覆盖导入失败：%d %s", batch.code, batch.body)
+	}
+	if sum := batch.json(t); int(sum["created"].(float64)) != 1 || int(sum["overwritten"].(float64)) != 1 {
+		t.Fatalf("批内重复 overwrite 结果不符：%v", sum)
+	}
+	if afterBatch := listTotal(t, ts, ck); afterBatch != beforeBatch+1 {
+		t.Fatalf("批内重复 overwrite 不应新增两条：before=%d after=%d", beforeBatch, afterBatch)
+	}
 }
 
 func TestLocalHubJSONExportImportWithIcon(t *testing.T) {

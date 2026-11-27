@@ -136,6 +136,15 @@ func (s *server) handleImportExecute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sum := transfer.Summary{Warnings: warns, Items: []transfer.ImportResult{}}
+	// liveIDs 跟踪本次执行中已落库的 URL，供批内重复的 overwrite 复用同一条记录。
+	liveIDs := map[string]int64{}
+	for _, b := range existing {
+		for _, key := range transfer.URLKeys(b.LANURL, b.WANURL) {
+			if _, ok := liveIDs[key]; !ok {
+				liveIDs[key] = b.ID
+			}
+		}
+	}
 	for _, a := range analyzed {
 		rec := a.Record
 		deselected := req.Selected != nil && !selected[rec.Index]
@@ -162,6 +171,14 @@ func (s *server) handleImportExecute(w http.ResponseWriter, r *http.Request) {
 			case "keep_both":
 				// 继续按新增处理
 			case "overwrite":
+				if a.ExistingID == 0 {
+					for _, key := range transfer.URLKeys(a.Bookmark.LANURL, a.Bookmark.WANURL) {
+						if id, ok := liveIDs[key]; ok {
+							a.ExistingID = id
+							break
+						}
+					}
+				}
 				if a.ExistingID > 0 {
 					iconOK, err := s.overwriteBookmark(r, store, a, importIcons)
 					if err != nil {
@@ -188,6 +205,11 @@ func (s *server) handleImportExecute(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		sum.Created++
+		for _, key := range transfer.URLKeys(a.Bookmark.LANURL, a.Bookmark.WANURL) {
+			if _, ok := liveIDs[key]; !ok {
+				liveIDs[key] = id
+			}
+		}
 		if iconOK {
 			sum.Icons++
 		}
