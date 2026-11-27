@@ -1,0 +1,10 @@
+/localhub
+/bin/
+/dist/
+node_modules/
+web/node_modules/
+web/dist/
+localhub-data/
+.env
+*.log
+.DS_Store

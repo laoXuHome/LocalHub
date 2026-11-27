@@ -1,0 +1,26 @@
+services:
+  localhub:
+    image: ${LOCALHUB_IMAGE:-localhub:latest}
+    container_name: localhub
+    ports:
+      - "${LOCALHUB_PORT:-11030}:11030"
+    environment:
+      # 业务进程的 UID/GID：宿主机数据目录属主由入口自动修正为此值
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Shanghai}
+      # 容器内路径固定，不随宿主机变化
+      - LOCALHUB_DATA_DIR=/data
+      - LOCALHUB_HTTP_PORT=11030
+      - LOCALHUB_LOG_LEVEL=${LOCALHUB_LOG_LEVEL:-info}
+    volumes:
+      # 冒号左侧由部署者自定义，可与 compose 文件所在目录不同
+      - ${LOCALHUB_DATA_DIR:-./localhub-data}:/data
+    # 不要写 cap_drop: ALL：入口需要 CAP_CHOWN / CAP_SETUID / CAP_SETGID
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/localhub", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
