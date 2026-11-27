@@ -1,0 +1,11 @@
+P3.2 桌面/移动端独立布局持久化验证（2026-11-28T02:10:01）
+
+desktop: [{"id": 1, "size": "large"}, {"id": 2, "size": "medium"}, {"id": 15, "size": "large"}, {"id": 3, "size": "medium"}, {"id": 4, "size": "small"}, {"id": 5, "size": "medium"}, {"id": 6, "size": "small"}, {"id": 7, "size": "medium"}, {"id": 8, "size": "small"}, {"id": 9, "size": "small"}, {"id": 10, "size": "small"}, {"id": 11, "size": "small"}, {"id": 12, "size": "small"}, {"id": 13, "size": "small"}]
+mobile : [{"id": 1, "size": "large"}, {"id": 2, "size": "large"}, {"id": 3, "size": "medium"}, {"id": 4, "size": "small"}, {"id": 5, "size": "small"}, {"id": 6, "size": "small"}, {"id": 7, "size": "small"}, {"id": 8, "size": "small"}, {"id": 9, "size": "small"}, {"id": 10, "size": "small"}, {"id": 11, "size": "small"}, {"id": 12, "size": "small"}, {"id": 13, "size": "small"}, {"id": 15, "size": "medium"}]
+
+关键差异：书签 2 (OpenWrt 路由) 在桌面为 medium，在移动端为 large；书签 15 (P3.2 验收书签) 在桌面为 large，在移动端为 medium。
+
+书签 15 服务端字段：{"id": 15, "name": "P3.2 验收书签（已编辑）", "lan_url": "http://192.168.1.10:9000", "wan_url": "https://p32.example.com", "description": "用于验证新增、编辑、拖动、尺寸、预览与保存", "visibility": "public", "enabled": true, "open_mode": "new_tab", "icon_type": "file", "icon_mime": "image/png", "icon_size": 773, "icon_url": "/api/bookmarks/15/icon", "sort_order": 14, "folder_path": []}
+
+删除清理：临时书签 16/18 删除后，desktop/mobile 布局均无对应 ID；服务端 total 恢复为 14。
+刷新：页面 location.reload 后仍显示书签 15，桌面 1280x900 与手机 390x844 均保持各自尺寸。

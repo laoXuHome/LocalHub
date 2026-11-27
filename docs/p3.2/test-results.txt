@@ -1,0 +1,16 @@
+P3.2 本地自动化测试结果（2026-11-28）
+
+$ gofmt -l ./cmd ./internal
+(无输出)
+
+$ go vet ./...
+PASS
+
+$ go test ./... -count=1
+162 个 Go 测试（含子测试）全部通过，0 失败，0 跳过
+
+$ cd web && npm test
+2 个测试文件 / 25 个测试全部通过（P3.1 18 + P3.2 新增 7）
+
+$ cd web && npm run build
+tsc --noEmit 通过；vite build 43 modules，JS 181.28 kB，CSS 35.02 kB
