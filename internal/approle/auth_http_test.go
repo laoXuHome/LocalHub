@@ -15,6 +15,7 @@ import (
 	"github.com/laoXuHome/LocalHub/internal/auth"
 	"github.com/laoXuHome/LocalHub/internal/config"
 	"github.com/laoXuHome/LocalHub/internal/db"
+	"github.com/laoXuHome/LocalHub/internal/icon"
 )
 
 func testConfig(t *testing.T, mutate func(*config.Config)) *config.Config {
@@ -60,6 +61,9 @@ func newTestServer(t *testing.T, mutate func(*config.Config)) (*server, *httptes
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	s := &server{cfg: cfg, log: log, db: database, state: &writeState{}, start: time.Now(), root: cfg.DataDir}
+	if st, err := icon.New(cfg.DataDir); err == nil {
+		s.icons = st
+	}
 	s.auth = newAuthState(s)
 	ts := httptest.NewServer(s.logMiddleware(s.routes()))
 	t.Cleanup(ts.Close)

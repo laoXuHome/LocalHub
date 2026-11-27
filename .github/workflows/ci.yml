@@ -164,6 +164,65 @@ jobs:
             http://127.0.0.1:18090/api/auth/login)
           echo "wrong password HTTP $wrong" | tee -a ci-artifacts/auth-smoke.txt
           test "$wrong" = "401"
+          # P2.2 图标冒烟：上传 → 访客读取 → 容器重启后仍可读 → SSRF 拦截 → 删除清理
+          echo "--- icon smoke ---" | tee -a ci-artifacts/icon-smoke.txt
+          printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > ci-icon.png
+          icon_sha=$(sha256sum ci-icon.png | awk '{print $1}')
+          curl -s --max-time 5 -c compose-cookies.txt -o /dev/null \
+            -H 'Content-Type: application/json' \
+            -d "{\"username\":\"admin\",\"password\":\"$LOCALHUB_ADMIN_PASSWORD\"}" \
+            http://127.0.0.1:18090/api/auth/login
+          bm=$(curl -s --max-time 5 -b compose-cookies.txt -H 'Content-Type: application/json' \
+            -d '{"name":"图标冒烟","wan_url":"https://example.com"}' \
+            http://127.0.0.1:18090/api/admin/bookmarks)
+          echo "create: $bm" | tee -a ci-artifacts/icon-smoke.txt
+          bid=$(echo "$bm" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+          up=$(curl -s --max-time 5 -b compose-cookies.txt -X PUT -H 'Content-Type: image/png' \
+            --data-binary @ci-icon.png -o icon-up.json -w '%{http_code}' \
+            "http://127.0.0.1:18090/api/admin/bookmarks/$bid/icon")
+          echo "icon upload HTTP $up body=$(cat icon-up.json)" | tee -a ci-artifacts/icon-smoke.txt
+          test "$up" = "200"
+          get1=$(curl -s --max-time 5 -o icon-before.png -w '%{http_code}' \
+            "http://127.0.0.1:18090/api/bookmarks/$bid/icon")
+          echo "icon get before restart HTTP $get1" | tee -a ci-artifacts/icon-smoke.txt
+          test "$get1" = "200"
+          test "$(sha256sum icon-before.png | awk '{print $1}')" = "$icon_sha"
+
+          docker compose restart >/dev/null 2>&1
+          health=000
+          for i in $(seq 1 60); do
+            health=$(curl -s --max-time 2 -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/health || true)
+            [ "$health" = "200" ] && break
+            sleep 1
+          done
+          echo "after restart /health HTTP $health" | tee -a ci-artifacts/icon-smoke.txt
+          test "$health" = "200"
+          get2=$(curl -s --max-time 5 -o icon-after.png -w '%{http_code}' \
+            "http://127.0.0.1:18090/api/bookmarks/$bid/icon")
+          echo "icon get after restart HTTP $get2" | tee -a ci-artifacts/icon-smoke.txt
+          test "$get2" = "200"
+          test "$(sha256sum icon-after.png | awk '{print $1}')" = "$icon_sha"
+
+          ssrfbm=$(curl -s --max-time 5 -b compose-cookies.txt -H 'Content-Type: application/json' \
+            -d '{"name":"SSRF","wan_url":"http://169.254.169.254/latest/meta-data/"}' \
+            http://127.0.0.1:18090/api/admin/bookmarks)
+          sid=$(echo "$ssrfbm" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+          ssrf=$(curl -s --max-time 10 -b compose-cookies.txt -X POST -o ssrf.json -w '%{http_code}' \
+            "http://127.0.0.1:18090/api/admin/bookmarks/$sid/favicon")
+          echo "ssrf favicon HTTP $ssrf body=$(cat ssrf.json)" | tee -a ci-artifacts/icon-smoke.txt
+          test "$ssrf" = "502"
+
+          del=$(curl -s --max-time 5 -b compose-cookies.txt -X DELETE -o /dev/null -w '%{http_code}' \
+            "http://127.0.0.1:18090/api/admin/bookmarks/$bid")
+          echo "delete bookmark HTTP $del" | tee -a ci-artifacts/icon-smoke.txt
+          test "$del" = "200"
+          get3=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:18090/api/bookmarks/$bid/icon")
+          echo "icon after bookmark delete HTTP $get3" | tee -a ci-artifacts/icon-smoke.txt
+          test "$get3" = "404"
+          left=$(sudo ls -A .ci-compose/icons | wc -l)
+          echo "icon files left: $left" | tee -a ci-artifacts/icon-smoke.txt
+          test "$left" = "0"
+
           docker compose down 2>&1 | tee -a ci-artifacts/compose-up.txt
           test "$code" = "200"
 

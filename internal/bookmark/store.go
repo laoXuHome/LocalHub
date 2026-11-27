@@ -36,16 +36,18 @@ func parseTS(s string) time.Time {
 	return t
 }
 
-const selectCols = `id, name, lan_url, wan_url, description, icon_type, icon_value, enabled, visibility, open_mode, docker_container, sort_order, created_at, updated_at`
+const selectCols = `id, name, lan_url, wan_url, description, icon_type, icon_value, icon_file, icon_mime, icon_size, icon_updated_at, enabled, visibility, open_mode, docker_container, sort_order, created_at, updated_at`
 
 func scan(sc interface{ Scan(...any) error }) (*Bookmark, error) {
 	b := &Bookmark{}
 	var enabled int
-	var created, updated string
+	var created, updated, iconUpdated string
 	if err := sc.Scan(&b.ID, &b.Name, &b.LANURL, &b.WANURL, &b.Description, &b.IconType, &b.IconValue,
+		&b.IconFile, &b.IconMime, &b.IconSize, &iconUpdated,
 		&enabled, &b.Visibility, &b.OpenMode, &b.DockerContainer, &b.SortOrder, &created, &updated); err != nil {
 		return nil, err
 	}
+	b.IconUpdatedAt = parseTS(iconUpdated)
 	b.Enabled = enabled == 1
 	b.CreatedAt = parseTS(created)
 	b.UpdatedAt = parseTS(updated)
@@ -141,10 +143,12 @@ func (s *Store) Create(ctx context.Context, b *Bookmark, now time.Time) (*Bookma
 func (s *Store) Update(ctx context.Context, b *Bookmark, now time.Time) error {
 	res, err := s.DB.SQL.ExecContext(ctx, `
 		UPDATE bookmarks SET name = ?, lan_url = ?, wan_url = ?, description = ?, icon_type = ?, icon_value = ?,
+			icon_file = ?, icon_mime = ?, icon_size = ?, icon_updated_at = ?,
 			enabled = ?, visibility = ?, open_mode = ?, docker_container = ?, sort_order = ?, updated_at = ?
 		WHERE id = ?`,
-		b.Name, b.LANURL, b.WANURL, b.Description, b.IconType, b.IconValue, boolInt(b.Enabled), b.Visibility,
-		b.OpenMode, b.DockerContainer, b.SortOrder, ts(now), b.ID)
+		b.Name, b.LANURL, b.WANURL, b.Description, b.IconType, b.IconValue,
+		b.IconFile, b.IconMime, b.IconSize, ts(b.IconUpdatedAt),
+		boolInt(b.Enabled), b.Visibility, b.OpenMode, b.DockerContainer, b.SortOrder, ts(now), b.ID)
 	if err != nil {
 		return fmt.Errorf("更新书签失败：%w", err)
 	}
@@ -302,4 +306,81 @@ func uniqIDs(ids []int64) []int64 {
 		out = append(out, id)
 	}
 	return out
+}
+
+// SetIcon 关联本地图标文件并切换到 icon_type=file。
+func (s *Store) SetIcon(ctx context.Context, id int64, file, mimeType string, size int64, now time.Time) error {
+	res, err := s.DB.SQL.ExecContext(ctx, `
+		UPDATE bookmarks SET icon_type = ?, icon_value = '', icon_file = ?, icon_mime = ?, icon_size = ?,
+			icon_updated_at = ?, updated_at = ?
+		WHERE id = ?`, IconFile, file, mimeType, size, ts(now), ts(now), id)
+	if err != nil {
+		return fmt.Errorf("保存图标信息失败：%w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ClearIcon 删除图标关联并回到无图标状态。
+func (s *Store) ClearIcon(ctx context.Context, id int64, now time.Time) error {
+	res, err := s.DB.SQL.ExecContext(ctx, `
+		UPDATE bookmarks SET icon_type = ?, icon_value = '', icon_file = '', icon_mime = '', icon_size = 0,
+			icon_updated_at = '', updated_at = ?
+		WHERE id = ?`, IconNone, ts(now), id)
+	if err != nil {
+		return fmt.Errorf("清除图标信息失败：%w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ClearIconFile 只清除本地图标文件元数据，保留 icon_type/icon_value（用于切换图标类型）。
+func (s *Store) ClearIconFile(ctx context.Context, id int64, now time.Time) error {
+	res, err := s.DB.SQL.ExecContext(ctx, `
+		UPDATE bookmarks SET icon_file = '', icon_mime = '', icon_size = 0, icon_updated_at = '', updated_at = ?
+		WHERE id = ?`, ts(now), id)
+	if err != nil {
+		return fmt.Errorf("清理图标文件信息失败：%w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ListIconFiles 返回给定 ID 集合中仍关联的图标文件名，用于删除书签后清理文件。
+func (s *Store) ListIconFiles(ctx context.Context, ids []int64) (map[int64]string, error) {
+	if len(ids) == 0 {
+		return map[int64]string{}, nil
+	}
+	uniq := uniqIDs(ids)
+	args := make([]any, 0, len(uniq))
+	for _, id := range uniq {
+		args = append(args, id)
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")
+	rows, err := s.DB.SQL.QueryContext(ctx, `SELECT id, icon_file FROM bookmarks WHERE id IN (`+placeholders+`)`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("查询图标文件失败：%w", err)
+	}
+	defer rows.Close()
+	out := map[int64]string{}
+	for rows.Next() {
+		var id int64
+		var file string
+		if err := rows.Scan(&id, &file); err != nil {
+			return nil, fmt.Errorf("读取图标文件失败：%w", err)
+		}
+		if file != "" {
+			out[id] = file
+		}
+	}
+	return out, rows.Err()
 }

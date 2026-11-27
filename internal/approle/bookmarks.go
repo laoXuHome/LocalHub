@@ -19,7 +19,7 @@ func (s *server) bookmarkStore() *bookmark.Store {
 }
 
 func bookmarkJSON(b bookmark.Bookmark) map[string]any {
-	return map[string]any{
+	m := map[string]any{
 		"id":                   b.ID,
 		"name":                 b.Name,
 		"lan_url":              b.LANURL,
@@ -35,7 +35,14 @@ func bookmarkJSON(b bookmark.Bookmark) map[string]any {
 		"sort_order":           b.SortOrder,
 		"created_at":           b.CreatedAt.UTC().Format(time.RFC3339),
 		"updated_at":           b.UpdatedAt.UTC().Format(time.RFC3339),
+		"has_icon":             b.IconFile != "",
 	}
+	if b.IconFile != "" {
+		m["icon_url"] = bookmarkIconURL(b.ID)
+		m["icon_mime"] = b.IconMime
+		m["icon_size"] = b.IconSize
+	}
+	return m
 }
 
 func pathID(r *http.Request) (int64, bool) {
@@ -171,6 +178,9 @@ func (s *server) handleAdminCreateBookmark(w http.ResponseWriter, r *http.Reques
 	}
 	sess := sessionFrom(r.Context())
 	s.log.Info("新增书签", slog.Int64("bookmark_id", created.ID), slog.String("name", created.Name), slog.String("actor", actorName(sess)))
+	if created.IconType == bookmark.IconFavicon {
+		s.maybeRefreshFavicon(created.ID)
+	}
 	writeJSON(w, http.StatusCreated, bookmarkJSON(*created))
 }
 
@@ -205,7 +215,18 @@ func (s *server) handleAdminUpdateBookmark(w http.ResponseWriter, r *http.Reques
 		writeStoreErr(w, err)
 		return
 	}
+	if base.IconFile != "" && next.IconFile == "" {
+		if err := store.ClearIconFile(r.Context(), id, time.Now()); err != nil && !errors.Is(err, bookmark.ErrNotFound) {
+			s.log.Warn("清理图标文件信息失败", slog.Int64("bookmark_id", id), slog.String("error", err.Error()))
+		}
+		if s.icons != nil {
+			_ = s.icons.DeleteForID(id)
+		}
+	}
 	s.log.Info("编辑书签", slog.Int64("bookmark_id", id), slog.String("actor", actorName(sessionFrom(r.Context()))))
+	if next.IconType == bookmark.IconFavicon {
+		s.maybeRefreshFavicon(id)
+	}
 	writeJSON(w, http.StatusOK, bookmarkJSON(*next))
 }
 
@@ -225,6 +246,9 @@ func (s *server) handleAdminDeleteBookmark(w http.ResponseWriter, r *http.Reques
 		writeStoreErr(w, err)
 		return
 	}
+	if s.icons != nil {
+		_ = s.icons.DeleteForID(id)
+	}
 	s.log.Info("删除书签", slog.Int64("bookmark_id", id), slog.String("actor", actorName(sessionFrom(r.Context()))))
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "deleted": 1})
 }
@@ -242,10 +266,16 @@ func (s *server) handleAdminBatchDelete(w http.ResponseWriter, r *http.Request) 
 	if !decodeJSON(w, r, &req) {
 		return
 	}
+	iconFiles, _ := store.ListIconFiles(r.Context(), req.IDs)
 	n, missing, err := store.BatchDelete(r.Context(), req.IDs)
 	if err != nil {
 		writeStoreErr(w, err)
 		return
+	}
+	if s.icons != nil {
+		for id := range iconFiles {
+			_ = s.icons.DeleteForID(id)
+		}
 	}
 	if missing == nil {
 		missing = []int64{}

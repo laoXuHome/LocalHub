@@ -20,6 +20,8 @@ import (
 	"github.com/laoXuHome/LocalHub/internal/config"
 	"github.com/laoXuHome/LocalHub/internal/datadir"
 	"github.com/laoXuHome/LocalHub/internal/db"
+	"github.com/laoXuHome/LocalHub/internal/favicon"
+	"github.com/laoXuHome/LocalHub/internal/icon"
 	"github.com/laoXuHome/LocalHub/internal/static"
 )
 
@@ -57,6 +59,11 @@ type server struct {
 	start time.Time
 	root  string
 	auth  *authState
+
+	// P2.2 图标：本地文件存储与 Favicon 抓取。
+	icons       *icon.Store
+	favicon     faviconFetcher
+	autoFavicon bool
 }
 
 // Run 执行 app 角色：写自检、打开数据库并迁移、提供 /health 与静态页面。
@@ -87,6 +94,15 @@ func Run(cfg *config.Config, log *slog.Logger) int {
 	if err := datadir.EnsureDirs(res.Path); err != nil {
 		log.Error("目录初始化失败", slog.String("error", err.Error()), slog.String("code", "DATA_DIR_CREATE_FAILED"))
 		return 1
+	}
+
+	// 图标目录已由 EnsureDirs 建立；初始化失败只关闭图标能力，不影响启动。
+	if st, err := icon.New(res.Path); err != nil {
+		log.Warn("图标存储初始化失败，图标能力不可用", slog.String("error", err.Error()))
+	} else {
+		app.icons = st
+		app.favicon = favicon.New()
+		app.autoFavicon = true
 	}
 
 	if _, err := datadir.CheckWrite(res.Path); err != nil {
@@ -292,6 +308,12 @@ func (s *server) routes() http.Handler {
 	mux.Handle("GET /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminGetBookmark)))
 	mux.Handle("PUT /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminUpdateBookmark)))
 	mux.Handle("DELETE /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminDeleteBookmark)))
+
+	// P2.2 图标：本地文件读取与管理员管理。
+	mux.HandleFunc("GET /api/bookmarks/{id}/icon", s.handleBookmarkIcon)
+	mux.Handle("PUT /api/admin/bookmarks/{id}/icon", s.requireAdmin(http.HandlerFunc(s.handleBookmarkIconUpload)))
+	mux.Handle("DELETE /api/admin/bookmarks/{id}/icon", s.requireAdmin(http.HandlerFunc(s.handleBookmarkIconDelete)))
+	mux.Handle("POST /api/admin/bookmarks/{id}/favicon", s.requireAdmin(http.HandlerFunc(s.handleBookmarkFavicon)))
 
 	// 其余为公开静态页面（访客可访问），/api/ 下未定义的路径由静态处理器返回 404。
 	mux.Handle("/", s.staticHandler())

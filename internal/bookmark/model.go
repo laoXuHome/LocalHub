@@ -31,6 +31,8 @@ const (
 	IconURL     = "url"
 	IconEmoji   = "emoji"
 	IconText    = "text"
+	// IconFile 表示图标已保存为本地文件（P2.2），只能由图标上传/抓取接口设置。
+	IconFile = "file"
 )
 
 // 字段长度上限。
@@ -45,13 +47,18 @@ const (
 
 // Bookmark 是书签记录。
 type Bookmark struct {
-	ID              int64
-	Name            string
-	LANURL          string
-	WANURL          string
-	Description     string
-	IconType        string
-	IconValue       string
+	ID          int64
+	Name        string
+	LANURL      string
+	WANURL      string
+	Description string
+	IconType    string
+	IconValue   string
+	// IconFile 是 <dataDir>/icons 下的内部文件名，不含用户输入。
+	IconFile        string
+	IconMime        string
+	IconSize        int64
+	IconUpdatedAt   time.Time
 	Enabled         bool
 	Visibility      string
 	OpenMode        string
@@ -129,7 +136,15 @@ func Build(base *Bookmark, in Input) (*Bookmark, error) {
 		b.Description = strings.TrimSpace(*in.Description)
 	}
 	if in.IconType != nil {
-		b.IconType = strings.ToLower(strings.TrimSpace(*in.IconType))
+		v := strings.ToLower(strings.TrimSpace(*in.IconType))
+		if v == IconFile {
+			return nil, invalid("本地图标请通过图标上传或抓取接口设置")
+		}
+		if b.IconType == IconFile && v != IconFile {
+			// 从本地图标切换为其他图标类型时，清理本地文件元数据，旧文件由处理器删除。
+			b.IconFile, b.IconMime, b.IconSize, b.IconUpdatedAt = "", "", 0, time.Time{}
+		}
+		b.IconType = v
 	}
 	if in.IconValue != nil {
 		b.IconValue = strings.TrimSpace(*in.IconValue)
@@ -185,6 +200,13 @@ func Validate(b *Bookmark) error {
 	case IconNone, IconFavicon, IconEmoji, IconText:
 		if b.IconType == IconNone && b.IconValue != "" {
 			return invalid("icon_type=none 时不应携带 icon_value")
+		}
+	case IconFile:
+		if b.IconFile == "" {
+			return invalid("icon_type=file 但缺少图标文件")
+		}
+		if b.IconValue != "" {
+			return invalid("icon_type=file 时不应携带 icon_value")
 		}
 	case IconURL:
 		if b.IconValue == "" {
