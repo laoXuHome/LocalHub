@@ -267,10 +267,11 @@ docker run -d --name "$NAME" --platform "$PLATFORM" -p "${PORT}:11030" \
   -v "$TMP/data1:/data" -e PUID=1000 -e PGID=1000 "$IMAGE" > /dev/null
 CODE=$(wait_health "$PORT" "$TMP/health2.json" 200)
 SV=$(jget "$TMP/health2.json" database.schema_version)
-if [ "$CODE" = "200" ] && [ -f "$TMP/data1/localhub.db" ] && [ "$SV" = "1" ]; then
-  pass "A5 重建后数据仍在" "db 存在, schema_version=$SV"
+SV_EXPECT=$(jget "$TMP/health.json" database.schema_version)
+if [ "$CODE" = "200" ] && [ -f "$TMP/data1/localhub.db" ] && [ "$SV" = "$SV_EXPECT" ]; then
+  pass "A5 重建后数据仍在" "db 存在, schema_version=$SV（与重建前一致）"
 else
-  fail "A5 重建后数据仍在" "HTTP $CODE, schema_version=$SV"
+  fail "A5 重建后数据仍在" "HTTP $CODE, schema_version=$SV（重建前 $SV_EXPECT）"
 fi
 
 log "===== T12 汇总 ====="
