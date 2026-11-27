@@ -9,6 +9,7 @@ PLATFORM="${2:-linux/amd64}"
 NAME="lh-t12-$$"
 PORT=18080
 TMP="$(mktemp -d)"
+ART_DIR="${T12_ARTIFACT_DIR:-}"
 FAILED=0
 
 log()  { printf '\n%s\n' "$*"; }
@@ -21,10 +22,16 @@ command -v sudo >/dev/null 2>&1 && SUDO="sudo"
 cleanup() {
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   docker rm -f "${NAME}-2" >/dev/null 2>&1 || true
+  docker rm -f "${NAME}-sigint" >/dev/null 2>&1 || true
   # 目录属主已被入口改成 PUID/PGID，普通用户无法直接删除
   $SUDO rm -rf "$TMP" >/dev/null 2>&1 || rm -rf "$TMP" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
+
+save() { # $1=文件：留档到 CI artifact 目录（未设置则跳过）
+  [ -n "$ART_DIR" ] || return 0
+  mkdir -p "$ART_DIR" && cp "$1" "$ART_DIR/" 2>/dev/null || true
+}
 
 jget() { # $1=file $2=dotted.path
   python3 - "$1" "$2" <<'PY'
@@ -85,17 +92,47 @@ ROOT=$(jget "$TMP/health.json" process.is_root)
   || fail "T3 app uid/gid 与 PUID/PGID 一致" "uid=$UID_ACT gid=$GID_ACT"
 [ "$ROOT" = "False" ] && pass "T4 app 非 root" "is_root=$ROOT" || fail "T4 app 非 root" "is_root=$ROOT"
 
-# ---------- T5：缺少 CAP_CHOWN/SETUID/SETGID 时给出明确错误 ----------
-log "T5 缺少能力时入口明确报错"
+# ---------- T5：逐项剔除单个能力，验证错误码与所需能力 ----------
+log "T5 能力缺失逐项验证（独立用例，互不替代）"
+
+cap_case() { # $1=用例名 $2=cap-drop 参数 $3=期望错误码 $4=期望能力关键字
+  local name="$1" drops="$2" want_code="$3" want_cap="$4"
+  local dir="$TMP/cap-$name" out="$TMP/cap-$name.log"
+  mkdir -p "$dir"; chmod 0755 "$dir"
+  # shellcheck disable=SC2086
+  timeout 30 docker run --rm --platform "$PLATFORM" --cap-drop $drops \
+    -v "$dir:/data" -e PUID=1000 -e PGID=1000 "$IMAGE" > "$out" 2>&1
+  local rc code line
+  rc=$?
+  code=$(grep -oE '"code":"[A-Z_]+"' "$out" | tail -1 | cut -d'"' -f4)
+  line=$(grep -E '"level":"(ERROR|WARN)"' "$out" | tail -1 | cut -c1-200)
+  if [ "$rc" -ne 0 ] && [ "$code" = "$want_code" ] && grep -q "$want_cap" "$out"; then
+    pass "T5 仅缺 $name" "exit=$rc code=$code 命中=$want_cap"
+  else
+    fail "T5 仅缺 $name" "exit=$rc code=${code:-none} 需要=$want_code/$want_cap 日志=$(tail -1 "$out" | cut -c1-160)"
+  fi
+  printf '  关键日志（%s）：%s\n' "$name" "$line"
+  save "$out"
+}
+
+# 5a：仅移除 CAP_CHOWN（保留 SETUID/SETGID）——属主修正必须失败
+cap_case "CAP_CHOWN" "CHOWN" "CHOWN_FAILED" "CAP_CHOWN"
+# 5b：仅移除 CAP_SETUID（保留 CHOWN/SETGID）——降权必须失败
+cap_case "CAP_SETUID" "SETUID" "PRIVILEGE_DENIED" "CAP_SETUID"
+# 5c：仅移除 CAP_SETGID（保留 CHOWN/SETUID）——降权必须失败
+cap_case "CAP_SETGID" "SETGID" "PRIVILEGE_DENIED" "CAP_SETGID"
+
+# 5d：整体移除全部能力（原有粗粒度用例，保留但不再作为能力验证依据）
 mkdir -p "$TMP/data2"; chmod 0755 "$TMP/data2"
 timeout 30 docker run --rm --platform "$PLATFORM" --cap-drop ALL \
   -v "$TMP/data2:/data" -e PUID=1000 -e PGID=1000 "$IMAGE" > "$TMP/caps.txt" 2>&1
 RC=$?
-if [ "$RC" -ne 0 ] && grep -qE 'CHOWN_FAILED|CAP_|PRIVILEGE_DENIED|属主修正失败' "$TMP/caps.txt"; then
-  pass "T5 能力缺失时非零退出且错误明确" "exit=$RC $(grep -oE 'CHOWN_FAILED|PRIVILEGE_DENIED|CAP_[A-Z]+' "$TMP/caps.txt" | head -1)"
+if [ "$RC" -ne 0 ] && grep -qE 'CHOWN_FAILED|PRIVILEGE_DENIED' "$TMP/caps.txt"; then
+  pass "T5 全部能力移除时非零退出" "exit=$RC $(grep -oE 'CHOWN_FAILED|PRIVILEGE_DENIED' "$TMP/caps.txt" | head -1)"
 else
-  fail "T5 能力缺失时非零退出且错误明确" "exit=$RC $(tail -1 "$TMP/caps.txt")"
+  fail "T5 全部能力移除时非零退出" "exit=$RC $(tail -1 "$TMP/caps.txt" | cut -c1-160)"
 fi
+save "$TMP/caps.txt"
 
 # ---------- T6：PID1 接收并转发 SIGTERM ----------
 log "T6 SIGTERM 转发"
@@ -111,6 +148,51 @@ echo "$LOGS" | grep -q '转发给业务进程' \
   && pass "T6a init 记录并转发 SIGTERM" "日志含“转发给业务进程”" \
   || fail "T6a init 记录并转发 SIGTERM" "$(echo "$LOGS" | tail -2)"
 [ "$EXIT" = "0" ] && pass "T6b 优雅退出码=0" "exit=$EXIT" || fail "T6b 优雅退出码=0" "exit=$EXIT"
+
+# ---------- T6b：SIGINT 独立验证（独立容器，不替代 SIGTERM） ----------
+log "T6 SIGINT 转发（独立容器）"
+SIGNAME="${NAME}-sigint"
+SIGPORT=18083
+mkdir -p "$TMP/data5"; chmod 0755 "$TMP/data5"
+docker run -d --name "$SIGNAME" --platform "$PLATFORM" -p "${SIGPORT}:11030" \
+  -v "$TMP/data5:/data" -e PUID=1000 -e PGID=1000 "$IMAGE" > /dev/null
+CODE_INT=$(wait_health "$SIGPORT" "$TMP/health-int.json" 200)
+if [ "$CODE_INT" = "200" ]; then
+  pass "T6c SIGINT 前置：服务已就绪" "HTTP 200"
+else
+  fail "T6c SIGINT 前置：服务已就绪" "HTTP $CODE_INT"
+fi
+docker kill -s INT "$SIGNAME" > /dev/null 2>&1
+STOPPED=no
+for i in $(seq 1 30); do
+  [ "$(docker inspect -f '{{.State.Running}}' "$SIGNAME" 2>/dev/null || echo false)" = "false" ] && { STOPPED=yes; break; }
+  sleep 0.5
+done
+EXIT_INT=$(docker inspect -f '{{.State.ExitCode}}' "$SIGNAME" 2>/dev/null || echo unknown)
+LOGS_INT=$(docker logs "$SIGNAME" 2>&1)
+printf '%s\n' "$LOGS_INT" > "$TMP/sigint.log"
+save "$TMP/sigint.log"
+echo "  init 日志：$(echo "$LOGS_INT" | grep '转发给业务进程' | cut -c1-220 | tail -1)"
+echo "  app  日志：$(echo "$LOGS_INT" | grep '开始优雅关闭' | cut -c1-220 | tail -1)"
+echo "  容器状态：stopped=$STOPPED exit_code=$EXIT_INT"
+if echo "$LOGS_INT" | grep -qE '"转发给业务进程".*"signal":"interrupt"'; then
+  pass "T6d init 收到并转发 SIGINT" "signal=interrupt"
+else
+  fail "T6d init 收到并转发 SIGINT" "$(echo "$LOGS_INT" | tail -2 | cut -c1-160)"
+fi
+if echo "$LOGS_INT" | grep -qE '"开始优雅关闭".*"signal":"interrupt"'; then
+  pass "T6e app 收到转发的 SIGINT" "signal=interrupt"
+else
+  fail "T6e app 收到转发的 SIGINT" "$(echo "$LOGS_INT" | tail -2 | cut -c1-160)"
+fi
+if [ "$STOPPED" = "yes" ] && [ "$EXIT_INT" = "0" ]; then
+  pass "T6f SIGINT 后在超时内优雅退出，exit=0" "stopped=$STOPPED exit=$EXIT_INT"
+elif [ "$STOPPED" = "yes" ]; then
+  fail "T6f SIGINT 退出码与行为不一致" "stopped=$STOPPED exit=$EXIT_INT（app 优雅关闭应得 0）"
+else
+  fail "T6f SIGINT 后超时未退出" "stopped=$STOPPED exit=$EXIT_INT"
+fi
+docker rm -f "$SIGNAME" > /dev/null 2>&1 || true
 
 # ---------- T7：子进程异常退出时容器退出码正确 ----------
 log "T7 子进程失败时退出码透传"

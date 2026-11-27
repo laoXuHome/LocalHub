@@ -91,9 +91,9 @@ func Run(cfg *config.Config, log *slog.Logger, self string) int {
 	if err := cmd.Start(); err != nil {
 		code := "APP_START_FAILED"
 		hint := "检查 PUID/PGID 与容器能力"
-		if errors.Is(err, syscall.EPERM) {
+		if errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.EACCES) {
 			code = "PRIVILEGE_DENIED"
-			hint = "缺少 CAP_SETUID/CAP_SETGID（或 CAP_CHOWN），容器未获得降权所需能力"
+			hint = "降权失败：切换到 PUID/PGID 需要 CAP_SETUID 与 CAP_SETGID，两者缺一不可；请勿使用 cap_drop: ALL"
 		}
 		log.Error("业务进程启动失败", slog.String("error", err.Error()), slog.String("code", code), slog.String("hint", hint))
 		return 1

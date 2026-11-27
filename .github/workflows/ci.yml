@@ -95,7 +95,8 @@ jobs:
       - name: T12 专项验证（amd64）
         run: |
           chmod +x scripts/t12.sh
-          timeout 600 bash scripts/t12.sh localhub:amd64 linux/amd64 2>&1 | tee ci-artifacts/t12.log
+          T12_ARTIFACT_DIR="$PWD/ci-artifacts/t12-logs" \
+            timeout 600 bash scripts/t12.sh localhub:amd64 linux/amd64 2>&1 | tee ci-artifacts/t12.log
           test ${PIPESTATUS[0]} -eq 0
 
       - name: arm64 运行验证（QEMU）
