@@ -280,7 +280,18 @@ func (s *server) routes() http.Handler {
 	// 管理员专属：退出、改密、管理员信息。
 	mux.Handle("/api/auth/logout", s.requireAdmin(http.HandlerFunc(s.handleLogout)))
 	mux.Handle("/api/auth/password", s.requireAdmin(http.HandlerFunc(s.handleChangePassword)))
-	mux.Handle("/api/admin/", s.requireAdmin(http.HandlerFunc(s.handleAdminWhoami)))
+	mux.Handle("GET /api/admin/whoami", s.requireAdmin(http.HandlerFunc(s.handleAdminWhoami)))
+
+	// 书签：公开读取按权限过滤；管理操作全部走后端鉴权。
+	mux.HandleFunc("GET /api/bookmarks", s.handlePublicBookmarks)
+	mux.HandleFunc("GET /api/bookmarks/{id}", s.handlePublicBookmark)
+	mux.Handle("GET /api/admin/bookmarks", s.requireAdmin(http.HandlerFunc(s.handleAdminListBookmarks)))
+	mux.Handle("POST /api/admin/bookmarks", s.requireAdmin(http.HandlerFunc(s.handleAdminCreateBookmark)))
+	mux.Handle("POST /api/admin/bookmarks/batch-delete", s.requireAdmin(http.HandlerFunc(s.handleAdminBatchDelete)))
+	mux.Handle("POST /api/admin/bookmarks/order", s.requireAdmin(http.HandlerFunc(s.handleAdminReorder)))
+	mux.Handle("GET /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminGetBookmark)))
+	mux.Handle("PUT /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminUpdateBookmark)))
+	mux.Handle("DELETE /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminDeleteBookmark)))
 
 	// 其余为公开静态页面（访客可访问），/api/ 下未定义的路径由静态处理器返回 404。
 	mux.Handle("/", s.staticHandler())

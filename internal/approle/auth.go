@@ -79,9 +79,11 @@ func writeError(w http.ResponseWriter, code int, errCode, msg string) {
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "只支持 POST")
+	switch r.Method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch:
+	default:
+		w.Header().Set("Allow", "POST, PUT, PATCH")
+		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "只支持 POST/PUT/PATCH")
 		return false
 	}
 	if ct := r.Header.Get("Content-Type"); ct != "" && !strings.HasPrefix(ct, "application/json") {
@@ -187,6 +189,11 @@ func (s *server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 
 // handleLogin 公开接口：登录并下发 HttpOnly 会话 Cookie。
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "只支持 POST")
+		return
+	}
 	if s.auth == nil {
 		writeError(w, http.StatusServiceUnavailable, "auth_unavailable", "认证子系统不可用")
 		return
@@ -321,6 +328,11 @@ func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 // handleChangePassword 管理员接口：校验旧口令后更新哈希，并吊销其他会话。
 func (s *server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "只支持 POST")
+		return
+	}
 	sess := sessionFrom(r.Context())
 	if sess == nil {
 		writeError(w, http.StatusUnauthorized, "unauthorized", "需要管理员登录")
