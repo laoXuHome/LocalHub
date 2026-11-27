@@ -1,17 +1,89 @@
-# T12 专项验证记录（P0）
+# T12 专项验证记录（P0，含 T5 逐项能力与 T6 SIGINT 补充）
 
-脚本：`scripts/t12.sh`（可用 `bash scripts/t12.sh <镜像> <平台>` 复现）。
+脚本：`scripts/t12.sh <image> <platform>`，可用 `T12_ARTIFACT_DIR=<dir>` 保留每个用例的原始日志。
 执行环境：GitHub Actions `ubuntu-latest` + Docker + QEMU(binfmt arm64)。
-本次执行：run [45979386270](https://github.com/laoXuHome/LocalHub/actions/runs/45979386270)，镜像 `localhub:amd64`（平台 `linux/amd64`），构建提交 `1a3fb9a3280cefb66dca2b64be76277677391180`。
 
-汇总：**21 条断言全部 PASS，RESULT: ALL PASS**。
+- 代码提交 `1e6a4340b030d1707bbdea36ed8e5d50378d983d`
+- 验证运行 [45983204744](https://github.com/laoXuHome/LocalHub/actions/runs/45983204744)
+- 主镜像 `localhub:amd64`（20.9 MB），平台 `linux/amd64`
+- 汇总：**28 条断言全部 PASS，RESULT: ALL PASS**
+- 原始日志：artifact `p0-verification-1e6a434.../t12-logs/`（cap-CAP_CHOWN.log、cap-CAP_SETUID.log、cap-CAP_SETGID.log、caps.txt、sigint.log）
 
-## 实测输出
+## 一、T5 逐项能力验证（三项独立用例）
+
+每项只丢弃**一个** capability，其余保持 Docker 默认，实际退出码与错误代码如下。
+
+### 5a 仅移除 CAP_CHOWN（保留 SETUID/SETGID）
+
+```
+docker run --rm --cap-drop CHOWN -v <dir>:/data -e PUID=1000 -e PGID=1000 <image>
+```
+
+| 项 | 实测 |
+| --- | --- |
+| 退出码 | `1` |
+| 错误代码 | `CHOWN_FAILED` |
+| 关键日志 | `{"level":"ERROR","msg":"属主修正失败","error":"修正属主 \"/data\" -> 1000:1000 失败：chown /data: operation not permitted","code":"CHOWN_FAILED","hint":"需要 CAP_CHOWN；如已 cap_drop: ALL，请保留 CHOWN/SETUID/SETGID 或改用匹配属主挂载"}` |
+| 结论 | 属主修正失败被精确归因到 CAP_CHOWN，PASS |
+
+### 5b 仅移除 CAP_SETUID（保留 CHOWN/SETGID）
+
+| 项 | 实测 |
+| --- | --- |
+| 退出码 | `1` |
+| 错误代码 | `PRIVILEGE_DENIED` |
+| 前序行为 | `属主修正完成 uid=1000 gid=1000`（CHOWN 正常） |
+| 关键日志 | `{"level":"ERROR","msg":"业务进程启动失败","error":"fork/exec /localhub: operation not permitted","code":"PRIVILEGE_DENIED","hint":"降权失败：切换到 PUID/PGID 需要 CAP_SETUID 与 CAP_SETGID，两者缺一不可；请勿使用 cap_drop: ALL"}` |
+| 结论 | 降权失败被明确报告并指明所需能力，PASS |
+
+### 5c 仅移除 CAP_SETGID（保留 CHOWN/SETUID）
+
+| 项 | 实测 |
+| --- | --- |
+| 退出码 | `1` |
+| 错误代码 | `PRIVILEGE_DENIED` |
+| 前序行为 | `属主修正完成 uid=1000 gid=1000` |
+| 关键日志 | 同 5b：`fork/exec /localhub: operation not permitted`，`code=PRIVILEGE_DENIED`，hint 指明 `CAP_SETUID 与 CAP_SETGID` |
+| 结论 | PASS |
+
+### 5d 全部能力移除（原有粗粒度用例，保留）
+
+| 项 | 实测 |
+| --- | --- |
+| 退出码 | `1` |
+| 错误代码 | `DATA_DIR_CREATE_FAILED`（无 CAP_DAC_OVERRIDE，连子目录都建不出） |
+| 结论 | PASS。该用例只作整体兜底，**不作为三项能力验证的替代** |
+
+> 说明：Docker 只能按 capability 丢弃，无法从内核错误中区分“缺 SETUID”与“缺 SETGID”（两者同报 EPERM），因此 5b/5c 的错误码同为 `PRIVILEGE_DENIED`，错误提示同时列出两项必需能力；能力归因由用例的 drop 参数确定。
+
+## 二、T6 信号验证（SIGTERM 保留 ＋ SIGINT 独立）
+
+### T6a/T6b SIGTERM（原有，保留）
+
+```
+PASS | T6a init 记录并转发 SIGTERM | 日志含“转发给业务进程”
+PASS | T6b 优雅退出码=0             | exit=0
+```
+
+### T6c–T6f SIGINT（独立容器，端口 18083）
+
+| 项 | 实测 |
+| --- | --- |
+| 前置 | 容器启动后 `/health` HTTP 200 |
+| init 日志 | `{"msg":"收到信号，转发给业务进程","signal":"interrupt","app_pid":12}` |
+| app 日志 | `{"msg":"收到信号，开始优雅关闭","signal":"interrupt"}` → `{"msg":"HTTP 服务已关闭"}` |
+| init 收尾 | `{"msg":"业务进程正常退出","exit_code":0}` |
+| 容器状态 | `stopped=yes`，`ExitCode=0`（≤15s 内退出） |
+| 结论 | T6d/T6e/T6f 全部 PASS，退出码与“优雅处理信号后正常退出”一致 |
+
+完整日志：artifact `t12-logs/sigint.log`。
+
+## 三、完整 T12 输出（本次运行）
 
 ```
 T1 distroless 启动 / 无 Shell
-PASS | T1a --version 可执行          | localhub v0.1.0-p0 commit=1a3fb9a3... build_time=2026-11-27T10:07:44Z
-PASS | T1b 镜像内无 /bin/sh          | OCI runtime create failed: exec: "/bin/sh": stat /bin/sh: no such file or directory
+PASS | T1a --version 可执行          | localhub v0.1.0-p0 commit=1e6a434... build_time=2026-11-27T10:35:01Z
+PASS | T1b 镜像内无 /bin/sh          | exec: "/bin/sh": stat /bin/sh: no such file or directory
 
 T2 init 修正 /data 属主
 PASS | T2a 容器启动并 healthy         | HTTP 200
@@ -24,12 +96,21 @@ T3/T4 app 进程身份
 PASS | T3 app uid/gid 与 PUID/PGID 一致 | uid=1000 gid=1000
 PASS | T4 app 非 root                   | is_root=False
 
-T5 缺少能力时入口明确报错
-PASS | T5 能力缺失时非零退出且错误明确 | exit=1 CAP_CHOWN
+T5 能力缺失逐项验证（独立用例，互不替代）
+PASS | T5 仅缺 CAP_CHOWN                | exit=1 code=CHOWN_FAILED 命中=CAP_CHOWN
+PASS | T5 仅缺 CAP_SETUID               | exit=1 code=PRIVILEGE_DENIED 命中=CAP_SETUID
+PASS | T5 仅缺 CAP_SETGID               | exit=1 code=PRIVILEGE_DENIED 命中=CAP_SETGID
+PASS | T5 全部能力移除时非零退出         | exit=1 DATA_DIR_CREATE_FAILED
 
 T6 SIGTERM 转发
 PASS | T6a init 记录并转发 SIGTERM     | 日志含“转发给业务进程”
 PASS | T6b 优雅退出码=0                 | exit=0
+
+T6 SIGINT 转发（独立容器）
+PASS | T6c SIGINT 前置：服务已就绪      | HTTP 200
+PASS | T6d init 收到并转发 SIGINT       | signal=interrupt
+PASS | T6e app 收到转发的 SIGINT        | signal=interrupt
+PASS | T6f SIGINT 后优雅退出，exit=0     | stopped=yes exit=0
 
 T7 子进程失败时退出码透传
 PASS | T7 子进程退出码透传              | 容器 exit=1（非法监听地址导致 app 启动失败）
@@ -54,25 +135,25 @@ PASS | A5 重建后数据仍在                 | db 存在, schema_version=1
 RESULT: ALL PASS
 ```
 
-## 十项验证与实现对应
+## 四、十二项映射
 
-| 项 | 要求 | 做法 | 结论 |
+| 项 | 要求 | 覆盖用例 | 结论 |
 | --- | --- | --- | --- |
-| T1 | distroless 镜像可正常启动 `/localhub` | `--version` 正常输出；`docker run ... /bin/sh` 被 OCI 拒绝 | 通过 |
-| T2 | init 正确处理 `/data` 权限 | 宿主机目录以 root 属主挂载，init 改为 `1000:1000`，子目录同步 | 通过 |
-| T3 | app 实际 UID/GID 与 PUID/PGID 一致 | `/health` 与 `/proc` 对照，均为 1000 | 通过 |
-| T4 | app 非 root | `process.is_root=false`，app 角色内再次拒绝 root | 通过 |
-| T5 | 缺 CAP_CHOWN/SETUID/SETGID 时明确报错 | `--cap-drop` 后 init exit=1，日志指明 `CAP_CHOWN` | 通过 |
-| T6 | PID1 接收并转发 SIGTERM/SIGINT | `docker kill -s TERM`，init 记录转发、子进程优雅退出、容器 ExitCode=0 | 通过 |
-| T7 | 子进程正常/异常退出时容器退出码正确 | 非法监听地址使 app 启动失败 → 容器 exit=1；正常退出 → 0 | 通过 |
-| T8 | `/data` 不可写时自检失败且健康异常 | 只读挂载 + `WRITE_CHECK_FATAL=false` → `/health` 503、`writable=false` | 通过 |
-| T9 | `--selftest` 以业务 UID 验证写入 | `docker exec --user 1000:1000 /localhub --selftest` exit 0；`--user 1001:1001` exit 1 | 通过 |
-| T10 | 符号链接逃逸与越界路径被拒绝 | `/data/escape -> /etc`：selftest 与 init 均 exit=1（`DATA_PATH_INVALID`） | 通过 |
-| A5 | 附加：重建后数据仍在 | 删除容器后同一数据目录重建，`schema_version=1` | 通过 |
+| T1 | distroless 可启动、无 Shell | T1a、T1b | PASS |
+| T2 | init 修正 `/data` 权限 | T2a–T2c | PASS |
+| T3 | app UID/GID = PUID/PGID | T3 | PASS |
+| T4 | app 非 root | T4 | PASS |
+| T5 | 缺能力时明确报错（逐项） | T5 × 4 | PASS |
+| T6 | PID1 转发 SIGTERM / SIGINT | T6a–T6f | PASS |
+| T7 | 退出码透传 | T7、T7b | PASS |
+| T8 | 不可写时健康降级 | T8 | PASS |
+| T9 | `--selftest` 在业务 UID 下验证 | T9a–T9c | PASS |
+| T10 | 符号链接/越界路径拒绝 | T10a、T10b | PASS |
+| A5 | 重建后数据仍在（附加） | A5 | PASS |
 
-## `--selftest` 输出字段（PUID=1000 场景）
+## 五、`--selftest` 输出字段（PUID=1000）
 
-```
+```json
 {"data_writable":true,"verified":true,"uid":1000,"gid":1000,"is_root":false,
  "data_dir":"/data","data_realpath":"/data","allowed_root":"/data","allowed_root_ok":true,
  "expected_puid":1000,"expected_pgid":1000,"reason":"","version":"v0.1.0-p0","commit":"..."}
@@ -80,13 +161,13 @@ RESULT: ALL PASS
 
 root 执行且 `PUID≠0` 时 `verified=false` 并 exit 1，避免“root 能写就认定业务能写”。
 
-## arm64（QEMU 模拟）
+## 六、arm64（QEMU 模拟）
 
 ```
 arm64 /health HTTP 200
-{"status":"ok","version":"v0.1.0-p0","database":{"status":"ok","schema_version":1},
- "data":{"writable":true,"path":"/data"},"process":{"role":"app","uid":1000,"gid":1000,"is_root":false}, ...}
+{"status":"ok","database":{"status":"ok","schema_version":1},"data":{"writable":true},
+ "process":{"role":"app","uid":1000,"gid":1000,"is_root":false}, ...}
 exit_code=0   （docker kill -s TERM 后）
 ```
 
-说明：arm64 通过 QEMU 在 x86 runner 上模拟运行，非真机 ARM 硬件；已验证启动、健康检查、信号与退出码。
+arm64 为 QEMU 模拟运行，非真机 ARM 硬件；已验证启动、健康检查、SIGTERM 与退出码。

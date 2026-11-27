@@ -8,9 +8,10 @@
 | 项 | 内容 |
 | --- | --- |
 | 仓库 | https://github.com/laoXuHome/LocalHub （public，main 分支） |
-| 验证提交 | `1a3fb9a3280cefb66dca2b64be76277677391180` |
-| CI 运行 | https://github.com/laoXuHome/LocalHub/actions/runs/45979386270 |
-| 验证产物 | Actions artifact `p0-verification-1a3fb9a...`（image-inspect.json、images.txt、version-amd64/arm64.txt、t12.log、health-arm64.json、health-compose.json、compose-config.txt、compose-ps.txt） |
+| 验证提交 | `1e6a4340b030d1707bbdea36ed8e5d50378d983d`（补充验证批） |
+| 前序提交 | `51bdfff51048732a9be23765b2a9f94c44beae9d`（首批 P0 交付） |
+| CI 运行 | https://github.com/laoXuHome/LocalHub/actions/runs/45983204744 |
+| 验证产物 | Actions artifact `p0-verification-1e6a434...`（image-inspect.json、images.txt、version-amd64/arm64.txt、t12.log、t12-logs/cap-CAP_CHOWN.log、t12-logs/cap-CAP_SETUID.log、t12-logs/cap-CAP_SETGID.log、t12-logs/caps.txt、t12-logs/sigint.log、health-arm64.json、health-compose.json、compose-config.txt、compose-ps.txt） |
 | 验收对照 | [docs/p0-acceptance.md](p0-acceptance.md) |
 | T12 记录 | [docs/t12-results.md](t12-results.md) |
 | 部署说明 | [docs/deploy.md](deploy.md) |
@@ -52,6 +53,19 @@ compose 实测：`docker compose up -d` → 容器 `localhub` Up（`0.0.0.0:1809
  "process":{"role":"app","uid":1000,"gid":1000,"is_root":false},"tz":"Asia/Shanghai"}
 ```
 
+## 三·补充、本次补充验证的变更（P0 范围内）
+
+| 文件 | 变更 |
+| --- | --- |
+| `scripts/t12.sh` | T5 拆为 3 项独立能力用例（仅缺 CHOWN / 仅缺 SETUID / 仅缺 SETGID），原有 `--cap-drop ALL` 保留为兜底；新增 T6 SIGINT 独立容器用例（T6c–T6f：就绪、init 转发、app 优雅关闭、超时内退出与退出码）；新增 `T12_ARTIFACT_DIR` 留存每项原始日志 |
+| `internal/initrole/initrole.go` | 仅错误提示文本细化：`PRIVILEGE_DENIED` 的 hint 明确“降权失败，需要 CAP_SETUID 与 CAP_SETGID，两者缺一不可”；判定条件增加 `EACCES`。降权机制、路径、架构未变 |
+| `.github/workflows/ci.yml` | T12 步骤传入 `T12_ARTIFACT_DIR=ci-artifacts/t12-logs`，新增用例随 T12 一并执行，任一失败即 Job 失败 |
+| `docs/t12-results.md` | 记录 T5 三项与 T6 SIGTERM/SIGINT 的真实退出码、错误代码、关键日志 |
+| `docs/p0-acceptance.md` | 更新验证覆盖范围与断言数（28 条） |
+| `docs/p0-report.md` | 本文件，记录补充提交与最新 CI 运行号 |
+
+未删除、未弱化任何原有 T12 用例；未新增业务功能；未改变入口/镜像/路径/权限架构。
+
 ## 四、已知问题
 
 1. **arm64 为 QEMU 模拟验证**，未在真机 ARM NAS 上运行过；真机验收需部署者执行一次 `docker compose up -d` 与 `--selftest`。
@@ -63,6 +77,8 @@ compose 实测：`docker compose up -d` → 容器 `localhub` Up（`0.0.0.0:1809
 7. `/data/logs` 目录已创建但 P0 未实现文件日志轮转，日志输出到 stdout（JSON 行）。
 8. T12 脚本在 CI 中使用 `sudo` 创建符号链接（`/data` 属主为 PUID，runner 用户无权限），仅影响测试脚本，不影响产品。
 9. 版本号由构建参数注入，当前固定 `v0.1.0-p0`；版本策略留给后续批次。
+10. Docker 无法从 EPERM 区分缺 SETUID 还是缺 SETGID，因此仅缺其一时错误码同为 `PRIVILEGE_DENIED`，提示同时列出两项能力；能力归因由用例的 `--cap-drop` 参数确定。
+11. 补充验证仍在 GitHub runner 上执行，未在真实 NAS 上跑 T12。
 
 ## 五、P1 施工建议（仅建议，未实施）
 

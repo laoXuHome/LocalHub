@@ -4,8 +4,8 @@
 
 验证环境：GitHub Actions `ubuntu-latest` runner（自带 Docker 24+/buildx/QEMU）。开发机（Linux 云主机）无 Docker，因此**全部容器级验证在 CI runner 内实际执行**，日志与产物可在 Actions 运行记录中复核。
 
-- 验证运行：[run 45979386270](https://github.com/laoXuHome/LocalHub/actions/runs/45979386270)（代码提交 `1a3fb9a3280cefb66dca2b64be76277677391180`）
-- 产物：`p0-verification-1a3fb9a...`（image-inspect.json、t12.log、health-arm64.json、health-compose.json、compose-config.txt 等）
+- 验证运行（含补充验证）：[run 45983204744](https://github.com/laoXuHome/LocalHub/actions/runs/45983204744)（代码提交 `1e6a4340b030d1707bbdea36ed8e5d50378d983d`）
+- 产物：`p0-verification-1e6a434...`（image-inspect.json、t12.log、t12-logs/cap-*.log、t12-logs/sigint.log、health-arm64.json、health-compose.json、compose-config.txt 等）
 
 ## 一、P0 验收标准逐项对照
 
@@ -18,7 +18,7 @@
 | 5 | PUID/PGID 权限机制实际生效 | 通过 | T2b `/data` 属主 `1000:1000`；T2c `icons/backups/logs` 属主 `1000:1000`；T3 app `uid=1000 gid=1000` |
 | 6 | 主业务进程默认非 root | 通过 | T4 `is_root=False`；健康信息 `process.is_root=false`；代码在 app 角色内再次拒绝 root（纵深防御） |
 | 7 | `/data` 写自检与 `--selftest` 通过 | 通过 | T9a `docker exec --user 1000:1000 /localhub --selftest` → exit 0、`data_writable=true`；T9b 非属主 1001 失败 exit 1 |
-| 8 | T12 十项验证全部完成并有记录 | 通过 | `scripts/t12.sh` 21 条断言全 PASS，见 [T12 记录](t12-results.md) 与 `t12.log` |
+| 8 | T12 十项验证全部完成并有记录 | 通过 | `scripts/t12.sh` **28 条断言全 PASS**；T5 为 3 项独立能力用例 + 1 项整体兜底，T6 为 SIGTERM 与 SIGINT 两套独立用例，见 [T12 记录](t12-results.md) 与 `t12.log`、`t12-logs/` |
 | 9 | amd64 / arm64 镜像构建成功 | 通过 | `localhub:amd64`（20.9MB）、`localhub:arm64`（4.89MB），`image-inspect.json` 记录 `Os/Arch` |
 | 10 | 两种架构均完成可运行性验证 | 通过（arm64 为 QEMU 模拟） | amd64：完整 T12 原生执行；arm64：QEMU 下容器启动、`/health` HTTP 200、SIGTERM 后 `ExitCode=0`、`--version` 输出正确 |
 | 11 | CI 全部通过 | 通过 | run 45979386270：Go 质量与测试 ✓、前端构建 ✓、多架构镜像与 T12 验证 ✓ |
@@ -57,12 +57,22 @@
 | `--selftest` 在业务 UID 下验证 | 完成 | CI 用 `docker exec --user 1000:1000`；root 且 PUID≠0 时判定 `verified=false` 并 exit 1 |
 | GitHub Actions 全链路 | 完成 | `.github/workflows/ci.yml`（go / web / image+T12 三 job） |
 
-## 三、明确禁止事项核对（第四章）
+## 三、验证覆盖范围说明（如实标注）
+
+| 维度 | 覆盖情况 |
+| --- | --- |
+| T5 能力缺失 | 逐项独立验证：仅缺 CAP_CHOWN → `CHOWN_FAILED`；仅缺 CAP_SETUID / 仅缺 CAP_SETGID → `PRIVILEGE_DENIED` 并指明所需能力；另保留 `--cap-drop ALL` 兜底用例 |
+| T6 信号 | SIGTERM（原有，保留）与 SIGINT（独立容器）各一组；SIGINT 用例校验 init 转发、app 优雅关闭、容器在超时内退出且 `ExitCode=0` |
+| amd64 | 原生完整执行 T12 全部 28 条断言 + Docker Compose 启动与健康检查 |
+| arm64 | QEMU 模拟运行：启动、`/health` 200、SIGTERM 后 `ExitCode=0`、`--version`；未在真机 ARM 硬件上验证 |
+| 真实 NAS | 未执行；宿主机文件系统/共享目录权限行为未实测，需部署者现场验收 |
+
+## 四、明确禁止事项核对（第四章）
 
 以下内容在本批中均**不存在**：管理员账户与登录会话权限、书签 CRUD 与导入导出与图标抓取、首页 Dashboard 与布局拖拽编辑、LAN/WAN 自动判断、Docker 容器发现/关联/状态、Docker Socket Proxy 接入、备份/恢复/WebDAV、通知中心与完整系统设置、V-01/V-02 正式验证。
 
 数据库仅有 `schema_migrations`（迁移框架元数据）与 `app_meta`（0001 迁移建立的基础表，未写入业务数据），无任何业务表。HTTP 路由仅 `/health` 与静态资源（含 SPA 回退）。
 
-## 四、结论
+## 五、结论
 
 P0 验收标准 13 项全部通过；施工范围与禁止事项核对无偏差。**P0 可提交验收**，未启动 P1。
