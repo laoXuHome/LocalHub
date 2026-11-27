@@ -32,7 +32,7 @@ func bookmarkJSON(b bookmark.Bookmark) map[string]any {
 		"effective_visibility": b.EffectiveVisibility(),
 		"open_mode":            b.OpenMode,
 		"docker_container":     b.DockerContainer,
-		"folder_path":          b.Folder,
+		"folder_path":          folderPathJSON(b.Folder),
 		"sort_order":           b.SortOrder,
 		"created_at":           b.CreatedAt.UTC().Format(time.RFC3339),
 		"updated_at":           b.UpdatedAt.UTC().Format(time.RFC3339),
@@ -320,4 +320,11 @@ func actorName(sess *auth.Session) string {
 		return "unknown"
 	}
 	return sess.Username
+}
+
+// folderPathJSON 保证 API 输出为数组：根层级是 []，而不是 null。
+func folderPathJSON(path []string) []string {
+	out := make([]string, len(path))
+	copy(out, path)
+	return out
 }

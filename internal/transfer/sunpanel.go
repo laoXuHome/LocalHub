@@ -22,7 +22,8 @@ func ParseSunPanel(data []byte) ([]Record, []Warning, error) {
 		return nil, nil, fmt.Errorf("JSON 解析失败：%v", err)
 	}
 	var recs []Record
-	err := walkSunPanel(root, nil, &recs, 0)
+	unnamed := 0
+	err := walkSunPanel(root, nil, &recs, 0, &unnamed)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -36,17 +37,21 @@ func ParseSunPanel(data []byte) ([]Record, []Warning, error) {
 	for i := range recs {
 		recs[i].Index = i
 	}
-	return recs, sunPanelWarnings, nil
+	warns := append([]Warning(nil), sunPanelWarnings...)
+	if unnamed > 0 {
+		warns = append(warns, Warning{Code: "sunpanel_folder_unnamed", Message: fmt.Sprintf("%d 个 Sun-Panel 分组缺少名称，其子项已放入上一级，层级无法完整保留", unnamed)})
+	}
+	return recs, warns, nil
 }
 
-func walkSunPanel(v any, folder []string, recs *[]Record, depth int) error {
+func walkSunPanel(v any, folder []string, recs *[]Record, depth int, unnamed *int) error {
 	if depth > 12 {
 		return fmt.Errorf("JSON 嵌套层级过深")
 	}
 	switch node := v.(type) {
 	case []any:
 		for _, child := range node {
-			if err := walkSunPanel(child, folder, recs, depth+1); err != nil {
+			if err := walkSunPanel(child, folder, recs, depth+1, unnamed); err != nil {
 				return err
 			}
 		}
@@ -66,6 +71,9 @@ func walkSunPanel(v any, folder []string, recs *[]Record, depth int) error {
 		// 仅有名称、无 URL 且包含子节点的对象视为文件夹分组。
 		if folderName == "" && hasContainer && url == "" && lan == "" {
 			folderName = name
+			if folderName == "" && depth > 0 {
+				*unnamed++
+			}
 		}
 		for _, key := range []string{"items", "data", "list", "apps", "sites", "bookmarks", "groups", "children"} {
 			if child, ok := node[key]; ok {
@@ -73,7 +81,7 @@ func walkSunPanel(v any, folder []string, recs *[]Record, depth int) error {
 					return fmt.Errorf("Sun-Panel 文件夹层级超过 %d 级", bookmark.MaxFolderDepth)
 				}
 				sub := appendFolder(folder, folderName)
-				if err := walkSunPanel(child, sub, recs, depth+1); err != nil {
+				if err := walkSunPanel(child, sub, recs, depth+1, unnamed); err != nil {
 					return err
 				}
 			}

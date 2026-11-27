@@ -13,11 +13,9 @@ import (
 )
 
 var (
-	reH3      = regexp.MustCompile(`(?is)<dt[^>]*>\s*<h3[^>]*>(.*?)</h3>`)
-	reAnchor  = regexp.MustCompile(`(?is)<dt[^>]*>\s*<a\s+([^>]*)>(.*?)</a>`)
-	reAttr    = regexp.MustCompile(`(?is)([a-z0-9_:-]+)\s*=\s*"([^"]*)"`)
-	reDLClose = regexp.MustCompile(`(?is)</dl\s*>`)
-	reDLOpen  = regexp.MustCompile(`(?is)<dl[^>]*>`)
+	// 一次扫描按出现顺序匹配 H3 文件夹、A 书签和 </DL> 关闭，兼容压缩成单行的 HTML。
+	reEvent = regexp.MustCompile(`(?is)<dt[^>]*>\s*<h3[^>]*>(.*?)</h3>|<dt[^>]*>\s*<a\s+([^>]*)>(.*?)</a>|</dl\s*>`)
+	reAttr  = regexp.MustCompile(`(?is)([a-z0-9_:-]+)\s*=\s*"([^"]*)"`)
 )
 
 var htmlWarnings = []Warning{
@@ -34,18 +32,10 @@ func ParseHTML(data []byte) ([]Record, []Warning, error) {
 	stack := []string{}
 	unnamed := 0
 	idx := 0
-	for _, raw := range strings.Split(text, "\n") {
-		line := strings.TrimSpace(raw)
-		if line == "" {
-			continue
-		}
-		// 先处理同一行内的多个标签：以 </DL> 与 <H3> 的出现顺序维护层级。
-		if reDLClose.MatchString(strings.ToLower(line)) && len(stack) > 0 && reH3.MatchString(line) == false {
-			// 关闭的是文件夹本身时，后续链接属于父层；根 DL 关闭时栈为空不处理。
-			stack = stack[:len(stack)-1]
-		}
-		if m := reH3.FindStringSubmatch(line); m != nil {
-			name := strings.TrimSpace(html.UnescapeString(stripTags(m[1])))
+	for _, loc := range reEvent.FindAllStringSubmatchIndex(text, -1) {
+		switch {
+		case loc[2] >= 0: // <DT><H3>文件夹</H3>
+			name := strings.TrimSpace(html.UnescapeString(stripTags(text[loc[2]:loc[3]])))
 			if name == "" {
 				name = "未命名文件夹"
 				unnamed++
@@ -54,54 +44,54 @@ func ParseHTML(data []byte) ([]Record, []Warning, error) {
 				return nil, nil, fmt.Errorf("文件夹层级超过 %d 级", bookmark.MaxFolderDepth)
 			}
 			stack = append(stack, name)
-			continue
-		}
-		m := reAnchor.FindStringSubmatch(line)
-		if m == nil {
-			continue
-		}
-		attrs := parseAttrs(m[1])
-		href := strings.TrimSpace(html.UnescapeString(attrs["href"]))
-		name := strings.TrimSpace(html.UnescapeString(stripTags(m[2])))
-		rec := Record{
-			Index:          idx,
-			Name:           name,
-			WANURL:         href,
-			Description:    strings.TrimSpace(html.UnescapeString(attrs["localhub_description"])),
-			Folder:         append([]string(nil), stack...),
-			FolderProvided: true,
-		}
-		if rec.Name == "" {
-			rec.Name = hostName(href)
-		}
-		rec.LANURL = strings.TrimSpace(html.UnescapeString(attrs["localhub_lan_url"]))
-		if v := strings.TrimSpace(html.UnescapeString(attrs["localhub_visibility"])); v != "" {
-			rec.Visibility = strings.ToLower(v)
-		}
-		if v := strings.TrimSpace(html.UnescapeString(attrs["localhub_open_mode"])); v != "" {
-			rec.OpenMode = strings.ToLower(v)
-		}
-		if v := strings.TrimSpace(attrs["localhub_enabled"]); v != "" {
-			switch strings.ToLower(v) {
-			case "1", "true", "yes":
-				b := true
-				rec.Enabled = &b
-			case "0", "false", "no":
-				b := false
-				rec.Enabled = &b
+		case loc[4] >= 0: // <DT><A ...>书签</A>
+			attrs := parseAttrs(text[loc[4]:loc[5]])
+			href := strings.TrimSpace(html.UnescapeString(attrs["href"]))
+			name := strings.TrimSpace(html.UnescapeString(stripTags(text[loc[6]:loc[7]])))
+			rec := Record{
+				Index:          idx,
+				Name:           name,
+				WANURL:         href,
+				Description:    strings.TrimSpace(html.UnescapeString(attrs["localhub_description"])),
+				Folder:         append([]string(nil), stack...),
+				FolderProvided: true,
 			}
-		}
-		rec.IconType = strings.ToLower(strings.TrimSpace(attrs["localhub_icon_type"]))
-		rec.IconValue = strings.TrimSpace(html.UnescapeString(attrs["localhub_icon_value"]))
-		if rec.IconType == "" {
-			if iconAttr := strings.TrimSpace(attrs["icon"]); strings.HasPrefix(strings.ToLower(iconAttr), "data:image/") {
-				if payload, mimeType, ok := parseDataURI(iconAttr); ok {
-					rec.IconData, rec.IconMime, rec.IconType = payload, mimeType, "file"
+			if rec.Name == "" {
+				rec.Name = hostName(href)
+			}
+			rec.LANURL = strings.TrimSpace(html.UnescapeString(attrs["localhub_lan_url"]))
+			if v := strings.TrimSpace(html.UnescapeString(attrs["localhub_visibility"])); v != "" {
+				rec.Visibility = strings.ToLower(v)
+			}
+			if v := strings.TrimSpace(html.UnescapeString(attrs["localhub_open_mode"])); v != "" {
+				rec.OpenMode = strings.ToLower(v)
+			}
+			if v := strings.TrimSpace(attrs["localhub_enabled"]); v != "" {
+				switch strings.ToLower(v) {
+				case "1", "true", "yes":
+					b := true
+					rec.Enabled = &b
+				case "0", "false", "no":
+					b := false
+					rec.Enabled = &b
 				}
 			}
+			rec.IconType = strings.ToLower(strings.TrimSpace(attrs["localhub_icon_type"]))
+			rec.IconValue = strings.TrimSpace(html.UnescapeString(attrs["localhub_icon_value"]))
+			if rec.IconType == "" {
+				if iconAttr := strings.TrimSpace(attrs["icon"]); strings.HasPrefix(strings.ToLower(iconAttr), "data:image/") {
+					if payload, mimeType, ok := parseDataURI(iconAttr); ok {
+						rec.IconData, rec.IconMime, rec.IconType = payload, mimeType, "file"
+					}
+				}
+			}
+			recs = append(recs, rec)
+			idx++
+		default: // </DL>
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
 		}
-		recs = append(recs, rec)
-		idx++
 	}
 	if len(recs) == 0 {
 		return nil, nil, fmt.Errorf("未在 HTML 中找到书签（需为 Netscape <DT><A HREF> 格式）")

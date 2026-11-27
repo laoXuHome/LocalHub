@@ -322,3 +322,55 @@ func TestLocalHubJSONV1StillImports(t *testing.T) {
 		t.Fatalf("v1 记录应按根层级导入：b=%+v err=%v", b, err)
 	}
 }
+
+func TestLocalHubJSONRootFolderRoundTrip(t *testing.T) {
+	now := time.Date(2026, 11, 27, 8, 0, 0, 0, time.UTC)
+	list := []bookmark.Bookmark{{ID: 1, Name: "根站", WANURL: "https://root.example.com", Enabled: true, Visibility: bookmark.VisibilityPublic, OpenMode: bookmark.OpenModeNewTab, CreatedAt: now, UpdatedAt: now}}
+	data, warns := BuildLocalHubJSON(list, func(string) ([]byte, error) { return nil, errNotFound }, now)
+	if len(warns) != 0 {
+		t.Fatalf("根书签不应产生图标警告：%+v", warns)
+	}
+	var doc struct {
+		Bookmarks []struct {
+			FolderPath *[]string `json:"folder_path"`
+		} `json:"bookmarks"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil || len(doc.Bookmarks) != 1 || doc.Bookmarks[0].FolderPath == nil || len(*doc.Bookmarks[0].FolderPath) != 0 {
+		t.Fatalf("根层级应显式导出空数组：%s err=%v", data, err)
+	}
+	recs, _, err := ParseLocalHubJSON(data)
+	if err != nil || len(recs) != 1 || !recs[0].FolderProvided || len(recs[0].Folder) != 0 {
+		t.Fatalf("根层级应可往返：%+v err=%v", recs, err)
+	}
+}
+
+func TestParseSunPanelUnnamedGroupWarns(t *testing.T) {
+	raw := `{"data":[{"children":[{"name":"子站","url":"https://unnamed.example.com"}]}]}`
+	recs, warns, err := ParseSunPanel([]byte(raw))
+	if err != nil || len(recs) != 1 {
+		t.Fatalf("解析失败：recs=%v err=%v", recs, err)
+	}
+	if len(recs[0].Folder) != 0 || !recs[0].FolderProvided {
+		t.Fatalf("无名分组子项应落在上一级并标记层级已提供：%+v", recs[0])
+	}
+	found := false
+	for _, w := range warns {
+		if w.Code == "sunpanel_folder_unnamed" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("无名分组必须告警：%+v", warns)
+	}
+}
+
+func TestParseMinifiedNestedHTML(t *testing.T) {
+	raw := `<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><H3>工作</H3><DL><p><DT><H3>项目</H3><DL><p><DT><A HREF="https://min.example.com/">Min</A></DL><p></DL><p></DL><p>`
+	recs, _, err := ParseHTML([]byte(raw))
+	if err != nil || len(recs) != 1 {
+		t.Fatalf("压缩 HTML 解析失败：recs=%v err=%v", recs, err)
+	}
+	if !equalPath(recs[0].Folder, []string{"工作", "项目"}) {
+		t.Fatalf("压缩 HTML 层级错误：%+v", recs[0])
+	}
+}

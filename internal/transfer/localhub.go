@@ -52,7 +52,8 @@ func BuildLocalHubJSON(bs []bookmark.Bookmark, readIcon func(file string) ([]byt
 	}
 	warns := []Warning{}
 	for _, b := range bs {
-		folder := append([]string(nil), b.Folder...)
+		folder := make([]string, len(b.Folder))
+		copy(folder, b.Folder)
 		item := exportBookmark{
 			Name:            b.Name,
 			LANURL:          b.LANURL,
