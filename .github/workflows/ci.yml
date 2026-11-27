@@ -223,6 +223,42 @@ jobs:
           echo "icon files left: $left" | tee -a ci-artifacts/icon-smoke.txt
           test "$left" = "0"
 
+          # P2.3 导入导出冒烟：导出 JSON → 预览 HTML（不写库）→ 确认执行 → HTML 导出 → 访客拒绝
+          echo "--- transfer smoke ---" | tee -a ci-artifacts/transfer-smoke.txt
+          exp=$(curl -s --max-time 5 -b compose-cookies.txt -o export.json -w '%{http_code}' \
+            "http://127.0.0.1:18090/api/admin/bookmarks/export?format=json")
+          echo "export json HTTP $exp" | tee -a ci-artifacts/transfer-smoke.txt
+          test "$exp" = "200"
+          python3 -c 'import json; d=json.load(open("export.json")); assert d["format"]=="localhub-bookmarks" and d["version"]==1, d; print("export count", d["count"])' | tee -a ci-artifacts/transfer-smoke.txt
+
+          html_b64=$(printf '%s' '<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><DT><A HREF="https://transfer.example.com/">Transfer</A></DL>' | base64 -w0)
+          body=$(python3 -c 'import json,sys; print(json.dumps({"format":"auto","data_base64":sys.argv[1]}))' "$html_b64")
+          before=$(curl -s --max-time 5 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/bookmarks | python3 -c 'import sys,json; print(json.load(sys.stdin)["total"])')
+          pv=$(curl -s --max-time 5 -b compose-cookies.txt -H 'Content-Type: application/json' -d "$body" \
+            -o preview.json -w '%{http_code}' http://127.0.0.1:18090/api/admin/bookmarks/import/preview)
+          echo "import preview HTTP $pv" | tee -a ci-artifacts/transfer-smoke.txt
+          test "$pv" = "200"
+          python3 -c 'import json; d=json.load(open("preview.json")); assert d["total"]==1 and d["new"]==1, d; print("preview", d["total"], d["new"])' | tee -a ci-artifacts/transfer-smoke.txt
+          after_pv=$(curl -s --max-time 5 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/bookmarks | python3 -c 'import sys,json; print(json.load(sys.stdin)["total"])')
+          test "$before" = "$after_pv"
+
+          ex=$(curl -s --max-time 5 -b compose-cookies.txt -H 'Content-Type: application/json' -d "$body" \
+            -o import-exec.json -w '%{http_code}' http://127.0.0.1:18090/api/admin/bookmarks/import/execute)
+          echo "import execute HTTP $ex" | tee -a ci-artifacts/transfer-smoke.txt
+          test "$ex" = "200"
+          python3 -c 'import json; d=json.load(open("import-exec.json")); assert d["created"]==1 and d["failed"]==0, d; print("created", d["created"])' | tee -a ci-artifacts/transfer-smoke.txt
+
+          eh=$(curl -s --max-time 5 -b compose-cookies.txt -o export.html -w '%{http_code}' \
+            "http://127.0.0.1:18090/api/admin/bookmarks/export?format=html")
+          echo "export html HTTP $eh" | tee -a ci-artifacts/transfer-smoke.txt
+          test "$eh" = "200"
+          grep -q 'NETSCAPE-Bookmark-file-1' export.html
+
+          guest_exp=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' \
+            "http://127.0.0.1:18090/api/admin/bookmarks/export?format=json")
+          echo "guest export HTTP $guest_exp" | tee -a ci-artifacts/transfer-smoke.txt
+          test "$guest_exp" = "401"
+
           docker compose down 2>&1 | tee -a ci-artifacts/compose-up.txt
           test "$code" = "200"
 

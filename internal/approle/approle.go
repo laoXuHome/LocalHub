@@ -308,6 +308,9 @@ func (s *server) routes() http.Handler {
 	mux.Handle("GET /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminGetBookmark)))
 	mux.Handle("PUT /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminUpdateBookmark)))
 	mux.Handle("DELETE /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminDeleteBookmark)))
+	mux.Handle("POST /api/admin/bookmarks/import/preview", s.requireAdmin(http.HandlerFunc(s.handleImportPreview)))
+	mux.Handle("POST /api/admin/bookmarks/import/execute", s.requireAdmin(http.HandlerFunc(s.handleImportExecute)))
+	mux.Handle("GET /api/admin/bookmarks/export", s.requireAdmin(http.HandlerFunc(s.handleExport)))
 
 	// P2.2 图标：本地文件读取与管理员管理。
 	mux.HandleFunc("GET /api/bookmarks/{id}/icon", s.handleBookmarkIcon)
