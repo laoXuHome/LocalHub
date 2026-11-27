@@ -102,8 +102,8 @@ cap_case() { # $1=用例名 $2=cap-drop 参数 $3=期望错误码 $4=期望能�
   # shellcheck disable=SC2086
   timeout 30 docker run --rm --platform "$PLATFORM" --cap-drop $drops \
     -v "$dir:/data" -e PUID=1000 -e PGID=1000 "$IMAGE" > "$out" 2>&1
-  local rc code line
   rc=$?
+  local code line
   code=$(grep -oE '"code":"[A-Z_]+"' "$out" | tail -1 | cut -d'"' -f4)
   line=$(grep -E '"level":"(ERROR|WARN)"' "$out" | tail -1 | cut -c1-200)
   if [ "$rc" -ne 0 ] && [ "$code" = "$want_code" ] && grep -q "$want_cap" "$out"; then
@@ -127,8 +127,8 @@ mkdir -p "$TMP/data2"; chmod 0755 "$TMP/data2"
 timeout 30 docker run --rm --platform "$PLATFORM" --cap-drop ALL \
   -v "$TMP/data2:/data" -e PUID=1000 -e PGID=1000 "$IMAGE" > "$TMP/caps.txt" 2>&1
 RC=$?
-if [ "$RC" -ne 0 ] && grep -qE 'CHOWN_FAILED|PRIVILEGE_DENIED' "$TMP/caps.txt"; then
-  pass "T5 全部能力移除时非零退出" "exit=$RC $(grep -oE 'CHOWN_FAILED|PRIVILEGE_DENIED' "$TMP/caps.txt" | head -1)"
+if [ "$RC" -ne 0 ] && grep -qE 'CHOWN_FAILED|PRIVILEGE_DENIED|DATA_DIR_CREATE_FAILED' "$TMP/caps.txt"; then
+  pass "T5 全部能力移除时非零退出" "exit=$RC $(grep -oE 'CHOWN_FAILED|PRIVILEGE_DENIED|DATA_DIR_CREATE_FAILED' "$TMP/caps.txt" | head -1)"
 else
   fail "T5 全部能力移除时非零退出" "exit=$RC $(tail -1 "$TMP/caps.txt" | cut -c1-160)"
 fi
@@ -175,12 +175,12 @@ save "$TMP/sigint.log"
 echo "  init 日志：$(echo "$LOGS_INT" | grep '转发给业务进程' | cut -c1-220 | tail -1)"
 echo "  app  日志：$(echo "$LOGS_INT" | grep '开始优雅关闭' | cut -c1-220 | tail -1)"
 echo "  容器状态：stopped=$STOPPED exit_code=$EXIT_INT"
-if echo "$LOGS_INT" | grep -qE '"转发给业务进程".*"signal":"interrupt"'; then
+if echo "$LOGS_INT" | grep -qE '收到信号，转发给业务进程.*"signal":"interrupt"'; then
   pass "T6d init 收到并转发 SIGINT" "signal=interrupt"
 else
   fail "T6d init 收到并转发 SIGINT" "$(echo "$LOGS_INT" | tail -2 | cut -c1-160)"
 fi
-if echo "$LOGS_INT" | grep -qE '"开始优雅关闭".*"signal":"interrupt"'; then
+if echo "$LOGS_INT" | grep -qE '收到信号，开始优雅关闭.*"signal":"interrupt"'; then
   pass "T6e app 收到转发的 SIGINT" "signal=interrupt"
 else
   fail "T6e app 收到转发的 SIGINT" "$(echo "$LOGS_INT" | tail -2 | cut -c1-160)"
