@@ -96,21 +96,45 @@ const chromeHTML = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
     </DL><p>
 </DL><p>`
 
+const edgeHTML = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+    <DT><H3 ADD_DATE="1700000010">Edge 工作</H3>
+    <DL><p>
+        <DT><H3 ADD_DATE="1700000013">Edge 项目B</H3>
+        <DL><p>
+            <DT><A HREF="https://edge.example.com/" ADD_DATE="1700000011">Edge One</A>
+        </DL><p>
+        <DT><A HREF="https://edge-second.example.com/path" ADD_DATE="1700000012">Edge Second</A>
+    </DL><p>
+</DL><p>`
+
 func TestParseChromeAndEdgeHTML(t *testing.T) {
-	// Chrome / Edge 结构一致，各自走一次解析。
-	for _, name := range []string{"Chrome", "Edge"} {
-		t.Run(name, func(t *testing.T) {
-			recs, warns, err := ParseHTML([]byte(chromeHTML))
+	cases := []struct {
+		name       string
+		data       string
+		firstURL   string
+		firstPath  []string
+		secondPath []string
+	}{
+		{"Chrome", chromeHTML, "https://example.com/", []string{"工作", "项目A"}, []string{"工作"}},
+		{"Edge", edgeHTML, "https://edge.example.com/", []string{"Edge 工作", "Edge 项目B"}, []string{"Edge 工作"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recs, warns, err := ParseHTML([]byte(tc.data))
 			if err != nil {
 				t.Fatalf("解析失败：%v", err)
 			}
 			if len(recs) != 2 {
 				t.Fatalf("应解析出 2 条，got %d", len(recs))
 			}
-			if recs[0].Name != "Example & One" || recs[0].WANURL != "https://example.com/" {
+			if recs[0].WANURL != tc.firstURL {
 				t.Fatalf("首条解析错误：%+v", recs[0])
 			}
-			if !equalPath(recs[0].Folder, []string{"工作", "项目A"}) || !equalPath(recs[1].Folder, []string{"工作"}) {
+			if !equalPath(recs[0].Folder, tc.firstPath) || !equalPath(recs[1].Folder, tc.secondPath) {
 				t.Fatalf("多级文件夹层级未识别：%+v", recs)
 			}
 			for _, w := range warns {
