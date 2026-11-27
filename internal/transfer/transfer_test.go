@@ -88,7 +88,10 @@ const chromeHTML = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
 <DL><p>
     <DT><H3 ADD_DATE="1700000000">工作</H3>
     <DL><p>
-        <DT><A HREF="https://example.com/" ADD_DATE="1700000001">Example &amp; One</A>
+        <DT><H3 ADD_DATE="1700000003">项目A</H3>
+        <DL><p>
+            <DT><A HREF="https://example.com/" ADD_DATE="1700000001">Example &amp; One</A>
+        </DL><p>
         <DT><A HREF="https://second.example.com/path" ADD_DATE="1700000002">Second</A>
     </DL><p>
 </DL><p>`
@@ -107,17 +110,13 @@ func TestParseChromeAndEdgeHTML(t *testing.T) {
 			if recs[0].Name != "Example & One" || recs[0].WANURL != "https://example.com/" {
 				t.Fatalf("首条解析错误：%+v", recs[0])
 			}
-			if recs[0].Folder != "工作" || recs[1].Folder != "工作" {
-				t.Fatalf("文件夹层级未识别：%+v", recs)
+			if !equalPath(recs[0].Folder, []string{"工作", "项目A"}) || !equalPath(recs[1].Folder, []string{"工作"}) {
+				t.Fatalf("多级文件夹层级未识别：%+v", recs)
 			}
-			var hasFolderWarn bool
 			for _, w := range warns {
 				if w.Code == "folder_not_persisted" {
-					hasFolderWarn = true
+					t.Fatalf("层级已持久化，不应再提示不写库：%+v", warns)
 				}
-			}
-			if !hasFolderWarn {
-				t.Fatalf("应提示文件夹层级不写库：%+v", warns)
 			}
 		})
 	}
@@ -141,19 +140,26 @@ func TestParseHTMLLocalHubAttrs(t *testing.T) {
 func TestBuildHTMLRoundTrip(t *testing.T) {
 	now := time.Date(2026, 11, 27, 8, 0, 0, 0, time.UTC)
 	list := []bookmark.Bookmark{
-		{ID: 1, Name: "公开站", WANURL: "https://pub.example.com/", LANURL: "http://192.168.1.2:9000", Enabled: true, Visibility: bookmark.VisibilityPublic, OpenMode: bookmark.OpenModeNewTab, Description: "公开", IconType: bookmark.IconEmoji, IconValue: "🌐"},
-		{ID: 2, Name: "私有站", WANURL: "https://priv.example.com/", Enabled: false, Visibility: bookmark.VisibilityPrivate, OpenMode: bookmark.OpenModeSelf},
+		{ID: 1, Name: "公开站", Folder: []string{"工作", "项目A"}, WANURL: "https://pub.example.com/", LANURL: "http://192.168.1.2:9000", Enabled: true, Visibility: bookmark.VisibilityPublic, OpenMode: bookmark.OpenModeNewTab, Description: "公开", IconType: bookmark.IconEmoji, IconValue: "🌐"},
+		{ID: 2, Name: "私有站", Folder: []string{"工作"}, WANURL: "https://priv.example.com/", Enabled: false, Visibility: bookmark.VisibilityPrivate, OpenMode: bookmark.OpenModeSelf},
+		{ID: 3, Name: "根站", WANURL: "https://root.example.com/", Enabled: true, Visibility: bookmark.VisibilityPublic, OpenMode: bookmark.OpenModeNewTab},
 	}
 	data := BuildHTML(list, now)
 	text := string(data)
-	for _, want := range []string{"<!DOCTYPE NETSCAPE-Bookmark-file-1>", "<DT><H3", "LocalHub", "LOCALHUB_VISIBILITY=\"public\"", "LOCALHUB_ENABLED=\"0\"", "LOCALHUB_ICON_TYPE=\"emoji\""} {
+	for _, want := range []string{"<!DOCTYPE NETSCAPE-Bookmark-file-1>", "<H3", "工作", "项目A", "LOCALHUB_VISIBILITY=\"public\"", "LOCALHUB_ENABLED=\"0\"", "LOCALHUB_ICON_TYPE=\"emoji\""} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("HTML 缺少 %q：\n%s", want, text)
 		}
 	}
+	if strings.Contains(text, ">LocalHub</H3>") {
+		t.Fatalf("不应再插入额外的 LocalHub 根文件夹：\n%s", text)
+	}
 	recs, _, err := ParseHTML(data)
-	if err != nil || len(recs) != 2 {
+	if err != nil || len(recs) != 3 {
 		t.Fatalf("导出的 HTML 无法回读：recs=%v err=%v", recs, err)
+	}
+	if !equalPath(recs[0].Folder, []string{"工作", "项目A"}) || !equalPath(recs[1].Folder, []string{"工作"}) || !equalPath(recs[2].Folder, nil) {
+		t.Fatalf("HTML 层级回读错误：%+v", recs)
 	}
 	if recs[0].WANURL != "https://pub.example.com/" || recs[1].Enabled == nil || *recs[1].Enabled {
 		t.Fatalf("回读数据不一致：%+v", recs)
@@ -169,7 +175,7 @@ func TestParseSunPanelNested(t *testing.T) {
 	if err != nil || len(recs) != 2 {
 		t.Fatalf("解析失败：recs=%v err=%v", recs, err)
 	}
-	if recs[0].Folder != "工具" || recs[0].OpenMode != "new_tab" || recs[0].IconType != "emoji" || recs[0].LANURL != "http://10.0.0.2:3000" {
+	if !equalPath(recs[0].Folder, []string{"工具"}) || recs[0].OpenMode != "new_tab" || recs[0].IconType != "emoji" || recs[0].LANURL != "http://10.0.0.2:3000" {
 		t.Fatalf("首条映射错误：%+v", recs[0])
 	}
 	if recs[1].IconType != "url" || recs[1].OpenMode != "self" {
@@ -193,7 +199,7 @@ func TestLocalHubJSONRoundTripWithIcon(t *testing.T) {
 	now := time.Date(2026, 11, 27, 8, 0, 0, 0, time.UTC)
 	list := []bookmark.Bookmark{{
 		ID: 7, Name: "带图标", WANURL: "https://icon.example.com/", LANURL: "http://192.168.1.7:8080",
-		Description: "d", IconType: bookmark.IconFile, IconFile: "7-abcd1234.png", IconMime: "image/png", IconSize: int64(len(testPNG)),
+		Folder: []string{"迁移", "图标"}, Description: "d", IconType: bookmark.IconFile, IconFile: "7-abcd1234.png", IconMime: "image/png", IconSize: int64(len(testPNG)),
 		Enabled: true, Visibility: bookmark.VisibilityAuthenticated, OpenMode: bookmark.OpenModeSelf, SortOrder: 3,
 		CreatedAt: now, UpdatedAt: now,
 	}}
@@ -215,7 +221,7 @@ func TestLocalHubJSONRoundTripWithIcon(t *testing.T) {
 	if err != nil || len(recs) != 1 {
 		t.Fatalf("回读失败：recs=%v err=%v", recs, err)
 	}
-	if recs[0].IconType != bookmark.IconFile || len(recs[0].IconData) == 0 || recs[0].Visibility != bookmark.VisibilityAuthenticated {
+	if recs[0].IconType != bookmark.IconFile || len(recs[0].IconData) == 0 || recs[0].Visibility != bookmark.VisibilityAuthenticated || !equalPath(recs[0].Folder, []string{"迁移", "图标"}) {
 		t.Fatalf("图标或权限未迁移：%+v", recs[0])
 	}
 }
@@ -275,3 +281,44 @@ type notFoundError struct{}
 func (notFoundError) Error() string { return "not found" }
 
 var errNotFound error = notFoundError{}
+
+func equalPath(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestParseSunPanelGroupFolder(t *testing.T) {
+	raw := `{"data":[{"name":"工作","apps":[
+		{"name":"组A","children":[{"name":"子站","url":"https://nested.example.com"}]},
+		{"name":"面板","url":"https://panel2.example.com"}
+	]}]}`
+	recs, _, err := ParseSunPanel([]byte(raw))
+	if err != nil || len(recs) != 2 {
+		t.Fatalf("解析失败：recs=%v err=%v", recs, err)
+	}
+	if !equalPath(recs[0].Folder, []string{"工作", "组A"}) || !equalPath(recs[1].Folder, []string{"工作"}) {
+		t.Fatalf("Sun-Panel 分组层级未保留：%+v", recs)
+	}
+}
+
+func TestLocalHubJSONV1StillImports(t *testing.T) {
+	raw := `{"format":"localhub-bookmarks","version":1,"bookmarks":[{"name":"旧版","wan_url":"https://v1.example.com","enabled":true,"visibility":"public","open_mode":"new_tab"}]}`
+	recs, _, err := ParseLocalHubJSON([]byte(raw))
+	if err != nil || len(recs) != 1 {
+		t.Fatalf("v1 兼容失败：recs=%v err=%v", recs, err)
+	}
+	if recs[0].FolderProvided {
+		t.Fatalf("v1 没有 folder_path，不应声称提供层级：%+v", recs[0])
+	}
+	b, err := bookmark.Build(nil, recs[0].ToInput())
+	if err != nil || len(b.Folder) != 0 {
+		t.Fatalf("v1 记录应按根层级导入：b=%+v err=%v", b, err)
+	}
+}

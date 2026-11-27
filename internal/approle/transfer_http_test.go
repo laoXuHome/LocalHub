@@ -53,8 +53,14 @@ func bookmarkID(t *testing.T, r response) int64 {
 
 const transferHTML = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
 <DL><p>
+<DT><H3>工作</H3>
+<DL><p>
+<DT><H3>项目</H3>
+<DL><p>
 <DT><A HREF="https://first.example.com/" ADD_DATE="1700000001">First</A>
+</DL><p>
 <DT><A HREF="https://second.example.com/path" ADD_DATE="1700000002">Second</A>
+</DL><p>
 </DL><p>`
 
 func TestImportPreviewThenExecuteWithDuplicates(t *testing.T) {
@@ -76,6 +82,11 @@ func TestImportPreviewThenExecuteWithDuplicates(t *testing.T) {
 	if m["format"] != transfer.FormatHTML || int(m["total"].(float64)) != 2 || int(m["new"].(float64)) != 1 || int(m["duplicates"].(float64)) != 1 || int(m["invalid"].(float64)) != 0 {
 		t.Fatalf("预览统计不符：%v", m)
 	}
+	items := m["items"].([]any)
+	folder0 := items[0].(map[string]any)["folder_path"].([]any)
+	if len(folder0) != 2 || folder0[0] != "工作" || folder0[1] != "项目" {
+		t.Fatalf("预览未展示完整层级：%v", items[0])
+	}
 	if listTotal(t, ts, ck) != 1 {
 		t.Fatalf("预览阶段不得修改数据库")
 	}
@@ -91,6 +102,13 @@ func TestImportPreviewThenExecuteWithDuplicates(t *testing.T) {
 	}
 	if listTotal(t, ts, ck) != 2 {
 		t.Fatalf("导入后应有 2 条书签")
+	}
+	listAfter := do(t, ts, "GET", "/api/admin/bookmarks", "", ck, nil).json(t)
+	firstID := int64(sum["items"].([]any)[0].(map[string]any)["bookmark_id"].(float64))
+	first := do(t, ts, "GET", fmt.Sprintf("/api/admin/bookmarks/%d", firstID), "", ck, nil).json(t)
+	p := first["folder_path"].([]any)
+	if len(p) != 2 || p[0] != "工作" || p[1] != "项目" {
+		t.Fatalf("导入后层级未持久化：%v（列表 %v）", first, listAfter)
 	}
 
 	// 重复执行：全部跳过
@@ -150,7 +168,7 @@ func TestLocalHubJSONExportImportWithIcon(t *testing.T) {
 	s, ts := newTestServer(t, nil)
 	ck := adminCookie(t, ts, s)
 
-	created := do(t, ts, "POST", "/api/admin/bookmarks", `{"name":"迁移站","wan_url":"https://migrate.example.com","visibility":"authenticated"}`, ck, nil)
+	created := do(t, ts, "POST", "/api/admin/bookmarks", `{"name":"迁移站","wan_url":"https://migrate.example.com","visibility":"authenticated","folder_path":["迁移","图标"]}`, ck, nil)
 	if created.code != http.StatusCreated {
 		t.Fatalf("创建书签失败：%d %s", created.code, created.body)
 	}
@@ -172,8 +190,9 @@ func TestLocalHubJSONExportImportWithIcon(t *testing.T) {
 		Version   int    `json:"version"`
 		Count     int    `json:"count"`
 		Bookmarks []struct {
-			IconDataBase64 string `json:"icon_data_base64"`
-			Visibility     string `json:"visibility"`
+			IconDataBase64 string   `json:"icon_data_base64"`
+			Visibility     string   `json:"visibility"`
+			FolderPath     []string `json:"folder_path"`
 		} `json:"bookmarks"`
 	}
 	if err := json.Unmarshal(ex.body, &doc); err != nil {
@@ -182,8 +201,8 @@ func TestLocalHubJSONExportImportWithIcon(t *testing.T) {
 	if doc.Format != transfer.JSONFormatName || doc.Version != transfer.JSONFormatVersion || doc.Count != 1 {
 		t.Fatalf("导出头信息不符：%+v", doc)
 	}
-	if doc.Bookmarks[0].IconDataBase64 == "" || doc.Bookmarks[0].Visibility != bookmark.VisibilityAuthenticated {
-		t.Fatalf("导出未包含图标或权限：%+v", doc.Bookmarks[0])
+	if doc.Bookmarks[0].IconDataBase64 == "" || doc.Bookmarks[0].Visibility != bookmark.VisibilityAuthenticated || len(doc.Bookmarks[0].FolderPath) != 2 {
+		t.Fatalf("导出未包含图标、权限或层级：%+v", doc.Bookmarks[0])
 	}
 	if strings.Contains(string(ex.body), "icons/") {
 		t.Fatalf("导出不得包含服务器本地路径")
@@ -192,6 +211,9 @@ func TestLocalHubJSONExportImportWithIcon(t *testing.T) {
 	html := do(t, ts, "GET", "/api/admin/bookmarks/export?format=html", "", ck, nil)
 	if html.code != http.StatusOK || !strings.Contains(string(html.body), "NETSCAPE-Bookmark-file-1") || !strings.Contains(string(html.body), "LOCALHUB_VISIBILITY=") {
 		t.Fatalf("HTML 导出不兼容：%d %s", html.code, html.body)
+	}
+	if !strings.Contains(string(html.body), "<H3") || !strings.Contains(string(html.body), "迁移") || !strings.Contains(string(html.body), "图标") {
+		t.Fatalf("HTML 导出未表达文件夹层级：%s", html.body)
 	}
 
 	selected := do(t, ts, "GET", fmt.Sprintf("/api/admin/bookmarks/export?format=json&scope=selected&ids=%d", id), "", ck, nil)
@@ -228,7 +250,11 @@ func TestLocalHubJSONExportImportWithIcon(t *testing.T) {
 		t.Fatalf("恢复后应有 1 条书签")
 	}
 	list := do(t, ts, "GET", "/api/admin/bookmarks", "", ck, nil).json(t)
-	newID := int64(list["items"].([]any)[0].(map[string]any)["id"].(float64))
+	newItem := list["items"].([]any)[0].(map[string]any)
+	newID := int64(newItem["id"].(float64))
+	if p := newItem["folder_path"].([]any); len(p) != 2 || p[0] != "迁移" || p[1] != "图标" {
+		t.Fatalf("JSON 回导后层级不一致：%v", newItem)
+	}
 	icon := do(t, ts, "GET", fmt.Sprintf("/api/bookmarks/%d/icon", newID), "", ck, nil)
 	if icon.code != http.StatusOK || icon.header.Get("Content-Type") != "image/png" {
 		t.Fatalf("迁移后的图标不可读：%d %s", icon.code, icon.header.Get("Content-Type"))
@@ -272,7 +298,7 @@ func TestImportPartialFailureAndGuards(t *testing.T) {
 		t.Fatalf("无法识别的文件应 400，got %d", r.code)
 	}
 
-	sun := `{"items":[{"name":"有效","url":"https://ok.example.com"},{"name":"","url":"https://broken.example.com"}]}`
+	sun := `{"data":[{"name":"工作","apps":[{"name":"有效","url":"https://ok.example.com"},{"name":"","url":"https://broken.example.com"}]}]}`
 	pv := do(t, ts, "POST", "/api/admin/bookmarks/import/preview", importJSONBody(t, "auto", []byte(sun), nil), ck, nil)
 	if pv.code != http.StatusOK {
 		t.Fatalf("Sun-Panel 预览失败：%d %s", pv.code, pv.body)
@@ -281,12 +307,19 @@ func TestImportPartialFailureAndGuards(t *testing.T) {
 	if int(m["total"].(float64)) != 2 || int(m["new"].(float64)) != 1 || int(m["invalid"].(float64)) != 1 {
 		t.Fatalf("Sun-Panel 预览统计不符：%v", m)
 	}
+	if p := m["items"].([]any)[0].(map[string]any)["folder_path"].([]any); len(p) != 1 || p[0] != "工作" {
+		t.Fatalf("Sun-Panel 预览未展示层级：%v", m["items"].([]any)[0])
+	}
 	ex := do(t, ts, "POST", "/api/admin/bookmarks/import/execute", importJSONBody(t, "auto", []byte(sun), nil), ck, nil)
 	if sum := ex.json(t); int(sum["created"].(float64)) != 1 || int(sum["failed"].(float64)) != 1 {
 		t.Fatalf("部分失败结果不符：%v", sum)
 	}
 	if listTotal(t, ts, ck) != 1 {
 		t.Fatalf("失败记录不应写入数据库")
+	}
+	okItem := do(t, ts, "GET", "/api/admin/bookmarks", "", ck, nil).json(t)["items"].([]any)[0].(map[string]any)
+	if p := okItem["folder_path"].([]any); len(p) != 1 || p[0] != "工作" {
+		t.Fatalf("Sun-Panel 层级未持久化：%v", okItem)
 	}
 
 	if r := do(t, ts, "POST", "/api/admin/bookmarks/import/execute", importJSONBody(t, "auto", []byte(sun), map[string]any{"duplicates": "drop"}), ck, nil); r.code != http.StatusBadRequest {

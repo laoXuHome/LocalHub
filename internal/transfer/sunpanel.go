@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/laoXuHome/LocalHub/internal/bookmark"
 )
 
 var sunPanelWarnings = []Warning{
-	{Code: "sunpanel_partial", Message: "Sun-Panel 仅映射名称、URL、图标、描述与打开方式；权限、排序、文件夹层级不写入数据库"},
+	{Code: "sunpanel_partial", Message: "Sun-Panel 仅映射名称、URL、图标、描述、打开方式与文件夹层级；权限、排序不写入数据库"},
 }
 
 // ParseSunPanel 解析 Sun-Panel 风格的 JSON（items/data/list/apps/sites 数组，支持 children 嵌套）。
@@ -20,7 +22,7 @@ func ParseSunPanel(data []byte) ([]Record, []Warning, error) {
 		return nil, nil, fmt.Errorf("JSON 解析失败：%v", err)
 	}
 	var recs []Record
-	err := walkSunPanel(root, "", &recs, 0)
+	err := walkSunPanel(root, nil, &recs, 0)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -37,7 +39,7 @@ func ParseSunPanel(data []byte) ([]Record, []Warning, error) {
 	return recs, sunPanelWarnings, nil
 }
 
-func walkSunPanel(v any, folder string, recs *[]Record, depth int) error {
+func walkSunPanel(v any, folder []string, recs *[]Record, depth int) error {
 	if depth > 12 {
 		return fmt.Errorf("JSON 嵌套层级过深")
 	}
@@ -49,33 +51,45 @@ func walkSunPanel(v any, folder string, recs *[]Record, depth int) error {
 			}
 		}
 	case map[string]any:
-		// 容器键：items/data/list/apps/sites/bookmarks/groups
+		// 容器键：items/data/list/apps/sites/bookmarks/groups/children
+		name := firstString(node, "name", "title", "label")
+		url := firstString(node, "url", "href", "link", "wanUrl", "wan_url")
+		lan := firstString(node, "lanUrl", "lan_url", "internalUrl", "internal_url")
 		folderName := firstString(node, "groupName", "group_name", "folderName", "folder_name")
+		hasContainer := false
+		for _, key := range []string{"items", "data", "list", "apps", "sites", "bookmarks", "groups", "children"} {
+			if _, ok := node[key]; ok {
+				hasContainer = true
+				break
+			}
+		}
+		// 仅有名称、无 URL 且包含子节点的对象视为文件夹分组。
+		if folderName == "" && hasContainer && url == "" && lan == "" {
+			folderName = name
+		}
 		for _, key := range []string{"items", "data", "list", "apps", "sites", "bookmarks", "groups", "children"} {
 			if child, ok := node[key]; ok {
-				sub := folder
-				if folderName != "" {
-					sub = joinFolder(folder, folderName)
+				if len(folder) >= bookmark.MaxFolderDepth {
+					return fmt.Errorf("Sun-Panel 文件夹层级超过 %d 级", bookmark.MaxFolderDepth)
 				}
+				sub := appendFolder(folder, folderName)
 				if err := walkSunPanel(child, sub, recs, depth+1); err != nil {
 					return err
 				}
 			}
 		}
-		name := firstString(node, "name", "title", "label")
-		url := firstString(node, "url", "href", "link", "wanUrl", "wan_url")
-		lan := firstString(node, "lanUrl", "lan_url", "internalUrl", "internal_url")
 		if url == "" && lan == "" {
 			// 仅有名称的节点视为文件夹/分组，不产生记录。
 			return nil
 		}
 		r := Record{
-			Index:       len(*recs),
-			Name:        name,
-			LANURL:      lan,
-			WANURL:      url,
-			Description: firstString(node, "description", "desc", "remark"),
-			Folder:      folder,
+			Index:          len(*recs),
+			Name:           name,
+			LANURL:         lan,
+			WANURL:         url,
+			Description:    firstString(node, "description", "desc", "remark"),
+			Folder:         append([]string(nil), folder...),
+			FolderProvided: true,
 		}
 		switch strings.ToLower(firstString(node, "target", "openType", "open_type")) {
 		case "_self", "self", "current", "current_tab":
@@ -109,9 +123,11 @@ func firstString(m map[string]any, keys ...string) string {
 	return ""
 }
 
-func joinFolder(base, name string) string {
-	if base == "" {
-		return name
+func appendFolder(base []string, name string) []string {
+	name = strings.TrimSpace(name)
+	out := append([]string(nil), base...)
+	if name == "" {
+		return out
 	}
-	return base + "/" + name
+	return append(out, name)
 }

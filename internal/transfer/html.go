@@ -21,7 +21,6 @@ var (
 )
 
 var htmlWarnings = []Warning{
-	{Code: "folder_not_persisted", Message: "书签 HTML 的文件夹层级仅在预览中展示，不写入数据库（本产品不引入分类/标签体系）"},
 	{Code: "html_no_icon", Message: "浏览器导出的 HTML 通常不含图标；仅 Firefox 的 ICON=data: 或 LocalHub 导出的 LOCALHUB_ICON_* 可携带图标"},
 	{Code: "html_permission_default", Message: "HTML 未携带 LOCALHUB_VISIBILITY 时，权限按默认值 public 处理"},
 }
@@ -33,6 +32,7 @@ func ParseHTML(data []byte) ([]Record, []Warning, error) {
 	text = strings.ReplaceAll(text, "\r", "\n")
 	var recs []Record
 	stack := []string{}
+	unnamed := 0
 	idx := 0
 	for _, raw := range strings.Split(text, "\n") {
 		line := strings.TrimSpace(raw)
@@ -48,6 +48,10 @@ func ParseHTML(data []byte) ([]Record, []Warning, error) {
 			name := strings.TrimSpace(html.UnescapeString(stripTags(m[1])))
 			if name == "" {
 				name = "未命名文件夹"
+				unnamed++
+			}
+			if len(stack) >= bookmark.MaxFolderDepth {
+				return nil, nil, fmt.Errorf("文件夹层级超过 %d 级", bookmark.MaxFolderDepth)
 			}
 			stack = append(stack, name)
 			continue
@@ -60,11 +64,12 @@ func ParseHTML(data []byte) ([]Record, []Warning, error) {
 		href := strings.TrimSpace(html.UnescapeString(attrs["href"]))
 		name := strings.TrimSpace(html.UnescapeString(stripTags(m[2])))
 		rec := Record{
-			Index:       idx,
-			Name:        name,
-			WANURL:      href,
-			Description: strings.TrimSpace(html.UnescapeString(attrs["localhub_description"])),
-			Folder:      strings.Join(stack, "/"),
+			Index:          idx,
+			Name:           name,
+			WANURL:         href,
+			Description:    strings.TrimSpace(html.UnescapeString(attrs["localhub_description"])),
+			Folder:         append([]string(nil), stack...),
+			FolderProvided: true,
 		}
 		if rec.Name == "" {
 			rec.Name = hostName(href)
@@ -104,7 +109,11 @@ func ParseHTML(data []byte) ([]Record, []Warning, error) {
 	if len(recs) > MaxImportItems {
 		return nil, nil, fmt.Errorf("书签数量超过 %d 条上限", MaxImportItems)
 	}
-	return recs, htmlWarnings, nil
+	warns := append([]Warning(nil), htmlWarnings...)
+	if unnamed > 0 {
+		warns = append(warns, Warning{Code: "folder_unnamed", Message: fmt.Sprintf("%d 个文件夹名为空，已按“未命名文件夹”保存", unnamed)})
+	}
+	return recs, warns, nil
 }
 
 func parseAttrs(raw string) map[string]string {
@@ -166,16 +175,30 @@ func parseDataURI(v string) ([]byte, string, bool) {
 }
 
 // BuildHTML 生成浏览器可导入的 Netscape 书签 HTML。
-// 根文件夹固定为 LocalHub，不产生分类体系；权限/打开方式等通过 LOCALHUB_* 扩展属性保留。
+// 按书签已持久化的 Folder 路径生成嵌套 <H3>/<DL>；不引入分类或标签体系。
 func BuildHTML(bs []bookmark.Bookmark, now time.Time) []byte {
 	ts := now.Unix()
+	root := &htmlFolder{index: map[string]*htmlFolder{}}
+	for _, bm := range bs {
+		node := root
+		for _, name := range bm.Folder {
+			child := node.index[name]
+			if child == nil {
+				child = &htmlFolder{name: name, index: map[string]*htmlFolder{}}
+				node.index[name] = child
+				node.children = append(node.children, child)
+			}
+			node = child
+		}
+		node.items = append(node.items, bm)
+	}
 	var b bytes.Buffer
 	b.WriteString("<!DOCTYPE NETSCAPE-Bookmark-file-1>\n")
 	b.WriteString("<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n")
 	b.WriteString("<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n")
-	fmt.Fprintf(&b, "    <DT><H3 ADD_DATE=\"%d\" LAST_MODIFIED=\"%d\">LocalHub</H3>\n", ts, ts)
-	b.WriteString("    <DL><p>\n")
-	for _, bm := range bs {
+
+	writeBookmark := func(bm bookmark.Bookmark, depth int) {
+		indent := strings.Repeat("    ", depth)
 		href := bm.WANURL
 		if href == "" {
 			href = bm.LANURL
@@ -199,10 +222,31 @@ func BuildHTML(bs []bookmark.Bookmark, now time.Time) []byte {
 				fmt.Sprintf("LOCALHUB_ICON_VALUE=\"%s\"", html.EscapeString(bm.IconValue)),
 			)
 		}
-		fmt.Fprintf(&b, "        <DT><A %s>%s</A>\n", strings.Join(attrs, " "), html.EscapeString(bm.Name))
+		fmt.Fprintf(&b, "%s<DT><A %s>%s</A>\n", indent, strings.Join(attrs, " "), html.EscapeString(bm.Name))
 	}
-	b.WriteString("    </DL><p>\n</DL><p>\n")
+	var walk func(node *htmlFolder, depth int)
+	walk = func(node *htmlFolder, depth int) {
+		indent := strings.Repeat("    ", depth)
+		for _, child := range node.children {
+			fmt.Fprintf(&b, "%s<DT><H3 ADD_DATE=\"%d\" LAST_MODIFIED=\"%d\">%s</H3>\n", indent, ts, ts, html.EscapeString(child.name))
+			fmt.Fprintf(&b, "%s<DL><p>\n", indent)
+			walk(child, depth+1)
+			fmt.Fprintf(&b, "%s</DL><p>\n", indent)
+		}
+		for _, bm := range node.items {
+			writeBookmark(bm, depth+1)
+		}
+	}
+	walk(root, 0)
+	b.WriteString("</DL><p>\n")
 	return b.Bytes()
+}
+
+type htmlFolder struct {
+	name     string
+	children []*htmlFolder
+	index    map[string]*htmlFolder
+	items    []bookmark.Bookmark
 }
 
 func boolAttr(v bool) string {

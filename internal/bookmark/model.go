@@ -43,6 +43,9 @@ const (
 	MaxIconValueLen   = 512
 	MaxDockerLen      = 128
 	MaxBatchSize      = 200
+	// MaxFolderDepth / MaxFolderNameLen 限制文件夹路径，避免异常导入撑爆数据。
+	MaxFolderDepth   = 16
+	MaxFolderNameLen = 128
 )
 
 // Bookmark 是书签记录。
@@ -63,9 +66,11 @@ type Bookmark struct {
 	Visibility      string
 	OpenMode        string
 	DockerContainer string
-	SortOrder       int
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	// Folder 是文件夹路径（根层级为空）。持久化为 JSON 数组，不是分类/标签体系。
+	Folder    []string
+	SortOrder int
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // EffectiveVisibility 返回对外生效的权限：禁用优先。
@@ -91,17 +96,18 @@ func (b Bookmark) VisibleTo(admin bool) bool {
 
 // Input 是新增/编辑的请求体（PATCH 语义：指针字段表示“本次是否提供”）。
 type Input struct {
-	Name            *string `json:"name"`
-	LANURL          *string `json:"lan_url"`
-	WANURL          *string `json:"wan_url"`
-	Description     *string `json:"description"`
-	IconType        *string `json:"icon_type"`
-	IconValue       *string `json:"icon_value"`
-	Enabled         *bool   `json:"enabled"`
-	Visibility      *string `json:"visibility"`
-	OpenMode        *string `json:"open_mode"`
-	DockerContainer *string `json:"docker_container"`
-	SortOrder       *int    `json:"sort_order"`
+	Name            *string   `json:"name"`
+	LANURL          *string   `json:"lan_url"`
+	WANURL          *string   `json:"wan_url"`
+	Description     *string   `json:"description"`
+	IconType        *string   `json:"icon_type"`
+	IconValue       *string   `json:"icon_value"`
+	Enabled         *bool     `json:"enabled"`
+	Visibility      *string   `json:"visibility"`
+	OpenMode        *string   `json:"open_mode"`
+	DockerContainer *string   `json:"docker_container"`
+	SortOrder       *int      `json:"sort_order"`
+	FolderPath      *[]string `json:"folder_path"`
 }
 
 // ErrInvalid 表示输入不合法。
@@ -163,6 +169,9 @@ func Build(base *Bookmark, in Input) (*Bookmark, error) {
 	}
 	if in.SortOrder != nil {
 		b.SortOrder = *in.SortOrder
+	}
+	if in.FolderPath != nil {
+		b.Folder = normalizeFolder(*in.FolderPath)
 	}
 
 	if err := Validate(b); err != nil {
@@ -242,7 +251,33 @@ func Validate(b *Bookmark) error {
 	if b.SortOrder < 0 {
 		return invalid("sort_order 不能为负数")
 	}
+	if len(b.Folder) > MaxFolderDepth {
+		return invalid("文件夹层级最多 %d 级", MaxFolderDepth)
+	}
+	for _, name := range b.Folder {
+		if name == "" {
+			return invalid("文件夹名称不能为空")
+		}
+		if len([]byte(name)) > MaxFolderNameLen {
+			return invalid("文件夹名称最长 %d 字节", MaxFolderNameLen)
+		}
+		if strings.ContainsAny(name, "\r\n\x00") {
+			return invalid("文件夹名称不能包含换行或空字符")
+		}
+	}
 	return nil
+}
+
+// normalizeFolder 去掉首尾空白并复制，避免调用方后续修改影响记录。
+func normalizeFolder(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	for _, name := range in {
+		out = append(out, strings.TrimSpace(name))
+	}
+	return out
 }
 
 func checkHTTPURL(raw string) error {

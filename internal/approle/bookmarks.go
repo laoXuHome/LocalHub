@@ -32,6 +32,7 @@ func bookmarkJSON(b bookmark.Bookmark) map[string]any {
 		"effective_visibility": b.EffectiveVisibility(),
 		"open_mode":            b.OpenMode,
 		"docker_container":     b.DockerContainer,
+		"folder_path":          b.Folder,
 		"sort_order":           b.SortOrder,
 		"created_at":           b.CreatedAt.UTC().Format(time.RFC3339),
 		"updated_at":           b.UpdatedAt.UTC().Format(time.RFC3339),

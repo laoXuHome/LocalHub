@@ -17,8 +17,10 @@ const (
 	MaxImportBytes = 10 << 20
 	MaxImportItems = 5000
 	// JSONFormatName / JSONFormatVersion 是 LocalHub JSON 的版本标识。
-	JSONFormatName    = "localhub-bookmarks"
-	JSONFormatVersion = 1
+	// v2 增加 folder_path；解析兼容 v1（无层级，按根层级导入）。
+	JSONFormatName       = "localhub-bookmarks"
+	JSONFormatVersion    = 2
+	MinJSONFormatVersion = 1
 )
 
 // Warning 是整体级别的导入警告（字段不支持、层级不保留等）。
@@ -41,22 +43,24 @@ type Record struct {
 	IconMime string `json:"-"`
 	Enabled  *bool  `json:"-"`
 	// Visibility/OpenMode 为空表示来源未提供，导入时使用默认值/保留原值。
-	Visibility string `json:"visibility"`
-	OpenMode   string `json:"open_mode"`
-	Folder     string `json:"folder"`
+	Visibility string   `json:"visibility"`
+	OpenMode   string   `json:"open_mode"`
+	Folder     []string `json:"folder_path,omitempty"`
+	// FolderProvided 表示来源明确给出了层级（空数组表示根层级）；false 时覆盖导入保留原层级。
+	FolderProvided bool `json:"-"`
 }
 
 // Item 是预览中的单条结果。
 type Item struct {
-	Index      int    `json:"index"`
-	Name       string `json:"name"`
-	LANURL     string `json:"lan_url"`
-	WANURL     string `json:"wan_url"`
-	Folder     string `json:"folder"`
-	Status     string `json:"status"` // new / duplicate / invalid
-	Reason     string `json:"reason,omitempty"`
-	ExistingID int64  `json:"existing_id,omitempty"`
-	Duplicate  string `json:"duplicate_kind,omitempty"` // url / batch
+	Index      int      `json:"index"`
+	Name       string   `json:"name"`
+	LANURL     string   `json:"lan_url"`
+	WANURL     string   `json:"wan_url"`
+	Folder     []string `json:"folder_path,omitempty"`
+	Status     string   `json:"status"` // new / duplicate / invalid
+	Reason     string   `json:"reason,omitempty"`
+	ExistingID int64    `json:"existing_id,omitempty"`
+	Duplicate  string   `json:"duplicate_kind,omitempty"` // url / batch
 }
 
 // Preview 是预览响应。
@@ -114,6 +118,10 @@ func (r Record) ToInput() bookmark.Input {
 	}
 	if r.Enabled != nil {
 		in.Enabled = r.Enabled
+	}
+	if r.FolderProvided {
+		path := append([]string(nil), r.Folder...)
+		in.FolderPath = &path
 	}
 	return in
 }

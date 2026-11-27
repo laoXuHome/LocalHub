@@ -27,6 +27,10 @@ func testStore(t *testing.T) *Store {
 
 func strp(s string) *string { return &s }
 func boolp(b bool) *bool    { return &b }
+func pathp(p ...string) *[]string {
+	v := append([]string(nil), p...)
+	return &v
+}
 
 func TestValidationRules(t *testing.T) {
 	cases := []struct {
@@ -49,6 +53,12 @@ func TestValidationRules(t *testing.T) {
 		{"排序负数", Input{Name: strp("x"), WANURL: strp("https://a.example.com"), SortOrder: intp(-1)}, false},
 		{"docker 超长", Input{Name: strp("x"), WANURL: strp("https://a.example.com"), DockerContainer: strp(strings.Repeat("c", 129))}, false},
 		{"默认值补齐", Input{Name: strp("x"), WANURL: strp("https://a.example.com")}, true},
+		{"合法文件夹", Input{Name: strp("x"), WANURL: strp("https://a.example.com"), FolderPath: pathp("工作", "项目A")}, true},
+		{"文件夹含斜杠名称", Input{Name: strp("x"), WANURL: strp("https://a.example.com"), FolderPath: pathp("项目/A")}, true},
+		{"文件夹层级过深", Input{Name: strp("x"), WANURL: strp("https://a.example.com"), FolderPath: pathp(strings.Split(strings.Repeat("层/", 17), "/")[:17]...)}, false},
+		{"文件夹名称为空", Input{Name: strp("x"), WANURL: strp("https://a.example.com"), FolderPath: pathp("工作", " ")}, false},
+		{"文件夹名称超长", Input{Name: strp("x"), WANURL: strp("https://a.example.com"), FolderPath: pathp(strings.Repeat("夹", 129))}, false},
+		{"文件夹名称含换行", Input{Name: strp("x"), WANURL: strp("https://a.example.com"), FolderPath: pathp("工作\n下一行")}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -226,4 +236,58 @@ func TestMigrationIsRepeatableAndKeepsData(t *testing.T) {
 	if err != nil || got2.WANURL != "https://keep.example.com" {
 		t.Fatalf("重开数据库后数据丢失：%+v err=%v", got2, err)
 	}
+}
+
+func TestFolderPathPersistsAcrossReopen(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "folder.db")
+	open := func() *db.DB {
+		d, err := db.Open(dbPath)
+		if err != nil {
+			t.Fatalf("打开数据库失败：%v", err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := d.Migrate(ctx); err != nil {
+			t.Fatalf("迁移失败：%v", err)
+		}
+		return d
+	}
+	d := open()
+	st := &Store{DB: d}
+	in := Input{Name: strp("层级书签"), WANURL: strp("https://folder.example.com"), FolderPath: pathp("工作", "项目/A")}
+	b, err := Build(nil, in)
+	if err != nil {
+		t.Fatalf("构建失败：%v", err)
+	}
+	created, err := st.Create(context.Background(), b, time.Now())
+	if err != nil {
+		t.Fatalf("创建失败：%v", err)
+	}
+	got, err := st.Get(context.Background(), created.ID)
+	if err != nil || !testEqualPath(got.Folder, []string{"工作", "项目/A"}) {
+		t.Fatalf("创建后层级错误：%+v err=%v", got, err)
+	}
+	if err := d.Close(); err != nil {
+		t.Fatalf("关闭失败：%v", err)
+	}
+	d = open()
+	defer d.Close()
+	st = &Store{DB: d}
+	got, err = st.Get(context.Background(), created.ID)
+	if err != nil || !testEqualPath(got.Folder, []string{"工作", "项目/A"}) {
+		t.Fatalf("重开数据库后层级丢失：%+v err=%v", got, err)
+	}
+}
+
+func testEqualPath(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

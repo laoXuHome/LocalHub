@@ -3,6 +3,7 @@ package bookmark
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -36,18 +37,23 @@ func parseTS(s string) time.Time {
 	return t
 }
 
-const selectCols = `id, name, lan_url, wan_url, description, icon_type, icon_value, icon_file, icon_mime, icon_size, icon_updated_at, enabled, visibility, open_mode, docker_container, sort_order, created_at, updated_at`
+const selectCols = `id, name, lan_url, wan_url, description, icon_type, icon_value, icon_file, icon_mime, icon_size, icon_updated_at, enabled, visibility, open_mode, docker_container, sort_order, created_at, updated_at, folder_path`
 
 func scan(sc interface{ Scan(...any) error }) (*Bookmark, error) {
 	b := &Bookmark{}
 	var enabled int
-	var created, updated, iconUpdated string
+	var created, updated, iconUpdated, folder string
 	if err := sc.Scan(&b.ID, &b.Name, &b.LANURL, &b.WANURL, &b.Description, &b.IconType, &b.IconValue,
 		&b.IconFile, &b.IconMime, &b.IconSize, &iconUpdated,
-		&enabled, &b.Visibility, &b.OpenMode, &b.DockerContainer, &b.SortOrder, &created, &updated); err != nil {
+		&enabled, &b.Visibility, &b.OpenMode, &b.DockerContainer, &b.SortOrder, &created, &updated, &folder); err != nil {
 		return nil, err
 	}
 	b.IconUpdatedAt = parseTS(iconUpdated)
+	folderPath, err := decodeFolder(folder)
+	if err != nil {
+		return nil, fmt.Errorf("解析文件夹路径失败：%w", err)
+	}
+	b.Folder = folderPath
 	b.Enabled = enabled == 1
 	b.CreatedAt = parseTS(created)
 	b.UpdatedAt = parseTS(updated)
@@ -122,10 +128,10 @@ func (s *Store) Create(ctx context.Context, b *Bookmark, now time.Time) (*Bookma
 	}
 	res, err := s.DB.SQL.ExecContext(ctx, `
 		INSERT INTO bookmarks (name, lan_url, wan_url, description, icon_type, icon_value, enabled, visibility,
-			open_mode, docker_container, sort_order, created_at, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			open_mode, docker_container, sort_order, created_at, updated_at, folder_path)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		b.Name, b.LANURL, b.WANURL, b.Description, b.IconType, b.IconValue, boolInt(b.Enabled), b.Visibility,
-		b.OpenMode, b.DockerContainer, b.SortOrder, ts(now), ts(now))
+		b.OpenMode, b.DockerContainer, b.SortOrder, ts(now), ts(now), encodeFolder(b.Folder))
 	if err != nil {
 		return nil, fmt.Errorf("新增书签失败：%w", err)
 	}
@@ -144,11 +150,11 @@ func (s *Store) Update(ctx context.Context, b *Bookmark, now time.Time) error {
 	res, err := s.DB.SQL.ExecContext(ctx, `
 		UPDATE bookmarks SET name = ?, lan_url = ?, wan_url = ?, description = ?, icon_type = ?, icon_value = ?,
 			icon_file = ?, icon_mime = ?, icon_size = ?, icon_updated_at = ?,
-			enabled = ?, visibility = ?, open_mode = ?, docker_container = ?, sort_order = ?, updated_at = ?
+			enabled = ?, visibility = ?, open_mode = ?, docker_container = ?, sort_order = ?, folder_path = ?, updated_at = ?
 		WHERE id = ?`,
 		b.Name, b.LANURL, b.WANURL, b.Description, b.IconType, b.IconValue,
 		b.IconFile, b.IconMime, b.IconSize, ts(b.IconUpdatedAt),
-		boolInt(b.Enabled), b.Visibility, b.OpenMode, b.DockerContainer, b.SortOrder, ts(now), b.ID)
+		boolInt(b.Enabled), b.Visibility, b.OpenMode, b.DockerContainer, b.SortOrder, encodeFolder(b.Folder), ts(now), b.ID)
 	if err != nil {
 		return fmt.Errorf("更新书签失败：%w", err)
 	}
@@ -383,4 +389,26 @@ func (s *Store) ListIconFiles(ctx context.Context, ids []int64) (map[int64]strin
 		}
 	}
 	return out, rows.Err()
+}
+
+func encodeFolder(path []string) string {
+	if len(path) == 0 {
+		return "[]"
+	}
+	data, err := json.Marshal(path)
+	if err != nil {
+		return "[]"
+	}
+	return string(data)
+}
+
+func decodeFolder(raw string) ([]string, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	var path []string
+	if err := json.Unmarshal([]byte(raw), &path); err != nil {
+		return nil, err
+	}
+	return path, nil
 }

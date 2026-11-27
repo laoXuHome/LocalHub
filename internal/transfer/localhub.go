@@ -20,23 +20,24 @@ type exportDoc struct {
 }
 
 type exportBookmark struct {
-	Name            string `json:"name"`
-	LANURL          string `json:"lan_url"`
-	WANURL          string `json:"wan_url"`
-	Description     string `json:"description"`
-	IconType        string `json:"icon_type"`
-	IconValue       string `json:"icon_value"`
-	IconMime        string `json:"icon_mime,omitempty"`
-	IconSize        int64  `json:"icon_size,omitempty"`
-	IconDataBase64  string `json:"icon_data_base64,omitempty"`
-	IconMissing     bool   `json:"icon_missing,omitempty"`
-	Enabled         bool   `json:"enabled"`
-	Visibility      string `json:"visibility"`
-	OpenMode        string `json:"open_mode"`
-	DockerContainer string `json:"docker_container,omitempty"`
-	SortOrder       int    `json:"sort_order"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
+	Name            string    `json:"name"`
+	LANURL          string    `json:"lan_url"`
+	WANURL          string    `json:"wan_url"`
+	Description     string    `json:"description"`
+	IconType        string    `json:"icon_type"`
+	IconValue       string    `json:"icon_value"`
+	IconMime        string    `json:"icon_mime,omitempty"`
+	IconSize        int64     `json:"icon_size,omitempty"`
+	IconDataBase64  string    `json:"icon_data_base64,omitempty"`
+	IconMissing     bool      `json:"icon_missing,omitempty"`
+	Enabled         bool      `json:"enabled"`
+	Visibility      string    `json:"visibility"`
+	OpenMode        string    `json:"open_mode"`
+	DockerContainer string    `json:"docker_container,omitempty"`
+	FolderPath      *[]string `json:"folder_path,omitempty"`
+	SortOrder       int       `json:"sort_order"`
+	CreatedAt       string    `json:"created_at"`
+	UpdatedAt       string    `json:"updated_at"`
 }
 
 // BuildLocalHubJSON 生成完整迁移 JSON。图标以 base64 内嵌，不包含服务器本地路径。
@@ -51,6 +52,7 @@ func BuildLocalHubJSON(bs []bookmark.Bookmark, readIcon func(file string) ([]byt
 	}
 	warns := []Warning{}
 	for _, b := range bs {
+		folder := append([]string(nil), b.Folder...)
 		item := exportBookmark{
 			Name:            b.Name,
 			LANURL:          b.LANURL,
@@ -64,6 +66,7 @@ func BuildLocalHubJSON(bs []bookmark.Bookmark, readIcon func(file string) ([]byt
 			Visibility:      b.Visibility,
 			OpenMode:        b.OpenMode,
 			DockerContainer: b.DockerContainer,
+			FolderPath:      &folder,
 			SortOrder:       b.SortOrder,
 			CreatedAt:       b.CreatedAt.UTC().Format(time.RFC3339),
 			UpdatedAt:       b.UpdatedAt.UTC().Format(time.RFC3339),
@@ -92,7 +95,7 @@ func BuildLocalHubJSON(bs []bookmark.Bookmark, readIcon func(file string) ([]byt
 	return append(data, '\n'), warns
 }
 
-// ParseLocalHubJSON 解析 LocalHub JSON（版本 1）。
+// ParseLocalHubJSON 解析 LocalHub JSON（版本 1/2；v1 无 folder_path）。
 func ParseLocalHubJSON(data []byte) ([]Record, []Warning, error) {
 	var doc struct {
 		Format    string            `json:"format"`
@@ -110,8 +113,8 @@ func ParseLocalHubJSON(data []byte) ([]Record, []Warning, error) {
 	if doc.Format != JSONFormatName {
 		return nil, nil, fmt.Errorf("不是 LocalHub 导出文件（format=%q）", doc.Format)
 	}
-	if doc.Version != JSONFormatVersion {
-		return nil, nil, fmt.Errorf("不支持的 LocalHub JSON 版本 %d（当前支持 %d）", doc.Version, JSONFormatVersion)
+	if doc.Version < MinJSONFormatVersion || doc.Version > JSONFormatVersion {
+		return nil, nil, fmt.Errorf("不支持的 LocalHub JSON 版本 %d（当前支持 %d-%d）", doc.Version, MinJSONFormatVersion, JSONFormatVersion)
 	}
 	if len(doc.Bookmarks) == 0 {
 		return nil, nil, fmt.Errorf("文件中没有书签")
@@ -136,6 +139,10 @@ func ParseLocalHubJSON(data []byte) ([]Record, []Warning, error) {
 			Visibility:  item.Visibility,
 			OpenMode:    item.OpenMode,
 			Enabled:     boolPtr(item.Enabled),
+		}
+		if item.FolderPath != nil {
+			rec.Folder = append([]string(nil), *item.FolderPath...)
+			rec.FolderProvided = true
 		}
 		if item.IconDataBase64 == "" && rec.IconType == bookmark.IconFile {
 			// 导出时图标文件缺失（icon_missing）：保留书签，不保留本地图标标记。
