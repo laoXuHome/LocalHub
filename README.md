@@ -87,3 +87,4 @@ cd web && npm install && npm run dev
 - [部署与权限说明](docs/deploy.md)
 - [P0 验收对照表](docs/p0-acceptance.md)
 - [T12 专项验证记录](docs/t12-results.md)
+- [P0 交付说明](docs/p0-report.md)
