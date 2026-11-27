@@ -88,8 +88,9 @@ jobs:
           mkdir -p ci-artifacts
           docker image inspect localhub:amd64 localhub:arm64 > ci-artifacts/image-inspect.json
           docker images --format '{{.Repository}}:{{.Tag}} {{.ID}} {{.Size}}' | tee ci-artifacts/images.txt
-          docker run --rm --platform linux/amd64 localhub:amd64 /localhub --version | tee ci-artifacts/version-amd64.txt
-          docker run --rm --platform linux/arm64 localhub:arm64 /localhub --version | tee ci-artifacts/version-arm64.txt
+          set -o pipefail
+          docker run --rm --platform linux/amd64 localhub:amd64 --version | tee ci-artifacts/version-amd64.txt
+          docker run --rm --platform linux/arm64 localhub:arm64 --version | tee ci-artifacts/version-arm64.txt
 
       - name: T12 专项验证（amd64）
         run: |
@@ -116,6 +117,26 @@ jobs:
           docker inspect -f 'exit_code={{.State.ExitCode}}' lh-arm64 | tee ci-artifacts/arm64-exit.txt
           test "$code" = "200"
           test "$(docker inspect -f '{{.State.ExitCode}}' lh-arm64)" = "0"
+
+      - name: Docker Compose 启动与健康检查
+        run: |
+          rm -rf .ci-compose && mkdir -p .ci-compose
+          export LOCALHUB_IMAGE=localhub:amd64
+          export LOCALHUB_PORT=18090
+          export LOCALHUB_DATA_DIR="$PWD/.ci-compose"
+          docker compose config > ci-artifacts/compose-config.txt
+          docker compose up -d 2>&1 | tee ci-artifacts/compose-up.txt
+          code=000
+          for i in $(seq 1 60); do
+            code=$(curl -s --max-time 2 -o ci-artifacts/health-compose.json -w '%{http_code}' http://127.0.0.1:18090/health || true)
+            [ "$code" = "200" ] && break
+            sleep 1
+          done
+          docker compose ps -a | tee ci-artifacts/compose-ps.txt
+          echo "compose /health HTTP $code"
+          cat ci-artifacts/health-compose.json
+          docker compose down 2>&1 | tee -a ci-artifacts/compose-up.txt
+          test "$code" = "200"
 
       - name: 上传验证记录
         if: always()
