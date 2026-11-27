@@ -15,10 +15,14 @@ log()  { printf '\n%s\n' "$*"; }
 pass() { printf 'PASS | %-46s | %s\n' "$1" "$2"; }
 fail() { printf 'FAIL | %-46s | %s\n' "$1" "$2"; FAILED=1; }
 
+SUDO=""
+command -v sudo >/dev/null 2>&1 && SUDO="sudo"
+
 cleanup() {
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   docker rm -f "${NAME}-2" >/dev/null 2>&1 || true
-  rm -rf "$TMP"
+  # 目录属主已被入口改成 PUID/PGID，普通用户无法直接删除
+  $SUDO rm -rf "$TMP" >/dev/null 2>&1 || rm -rf "$TMP" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -132,6 +136,16 @@ else
   fail "T8 不可写时降级" "HTTP $CODE, writable=$W"
 fi
 
+# ---------- 恢复主容器（T6 已用 SIGTERM 终止过） ----------
+log "恢复主容器用于后续用例"
+docker start "$NAME" > /dev/null 2>&1
+RESTART_CODE=$(wait_health "$PORT" "$TMP/health-restart.json" 200)
+if [ "$RESTART_CODE" = "200" ]; then
+  pass "T7b 容器重启后恢复服务" "HTTP 200"
+else
+  fail "T7b 容器重启后恢复服务" "HTTP $RESTART_CODE"
+fi
+
 # ---------- T9：--selftest 在业务 UID 下验证写入 ----------
 log "T9 selftest 以业务 UID 验证"
 docker exec --user 1000:1000 "$NAME" /localhub --selftest > "$TMP/self-1000.json" 2>&1
@@ -146,7 +160,7 @@ docker exec --user 1000:1000 "$NAME" /localhub --selftest 2>/dev/null | grep -q 
 
 # ---------- T10：符号链接逃逸被拒绝 ----------
 log "T10 符号链接逃逸"
-ln -sfn /etc "$TMP/data1/escape"
+$SUDO ln -sfn /etc "$TMP/data1/escape"
 docker exec --user 1000:1000 \
   -e LOCALHUB_DATA_DIR=/data/escape -e LOCALHUB_DATA_ALLOWED_ROOT=/data \
   "$NAME" /localhub --selftest > "$TMP/escape.json" 2>&1
