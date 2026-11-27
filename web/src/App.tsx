@@ -1,187 +1,301 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { APIError, loadAuth, loadBookmarks } from './api'
+import type { AuthStatus, Bookmark, Role, ThemeMode } from './types'
+import { applyTheme, persistTheme, readTheme, watchSystemTheme } from './theme'
+import { BookmarkCard } from './components/BookmarkCard'
+import { AccountSheet } from './components/AccountSheet'
+import { ThemeSwitcher } from './components/ThemeSwitcher'
+import { Toast, type ToastMessage, type ToastTone } from './components/Toast'
+import {
+  BookmarkIcon,
+  BrandMark,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  FolderIcon,
+  HomeIcon,
+  RefreshIcon,
+  SearchIcon,
+  ServerIcon,
+  UserIcon,
+  WifiOffIcon,
+} from './components/Icons'
 
-type Status = {
-  authenticated: boolean
-  role: 'guest' | 'admin'
-  needs_setup: boolean
-  username?: string
-  session_expires_at?: string
+type LoadState = 'loading' | 'ready' | 'error'
+
+const navItems = [
+  { id: 'home', label: '首页', icon: HomeIcon },
+  { id: 'bookmarks', label: '书签', icon: BookmarkIcon },
+  { id: 'services', label: '服务', icon: ServerIcon },
+  { id: 'search', label: '搜索', icon: SearchIcon },
+] as const
+
+const mobileNavItems = [
+  ...navItems,
+  { id: 'account', label: '我的', icon: UserIcon },
+] as const
+
+function roleName(role: Role): string {
+  return role === 'admin' ? '管理员' : '访客'
 }
 
-type Health = {
-  status: string
-  version: string
-  commit: string
-  database: { status: string; schema_version: number }
-  data: { writable: boolean }
-  process: { uid: number; gid: number; is_root: boolean }
-}
-
-async function post(path: string, body: unknown) {
-  const r = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  let data: Record<string, unknown> = {}
-  try {
-    data = await r.json()
-  } catch {
-    /* 非 JSON 响应 */
-  }
-  return { ok: r.ok, status: r.status, data }
+function avatarText(auth: AuthStatus | null, role: Role): string {
+  if (auth?.authenticated && auth.username) return Array.from(auth.username)[0].toUpperCase()
+  return role === 'admin' ? 'A' : '访'
 }
 
 export default function App() {
-  const [status, setStatus] = useState<Status | null>(null)
-  const [health, setHealth] = useState<Health | null>(null)
-  const [msg, setMsg] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  const load = () => {
-    fetch('/api/auth/status')
-      .then((r) => r.json())
-      .then(setStatus)
-      .catch(() => setMsg('无法读取登录状态'))
-    fetch('/health')
-      .then((r) => r.json())
-      .then(setHealth)
-      .catch(() => undefined)
-  }
-
-  useEffect(load, [])
-
-  async function login(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    setBusy(true)
-    setMsg('')
-    const r = await post('/api/auth/login', {
-      username: form.get('username'),
-      password: form.get('password'),
-    })
-    setBusy(false)
-    if (r.ok) {
-      setMsg('')
-      load()
-    } else if (r.status === 429) {
-      setMsg(`登录失败次数过多，请 ${r.data.retry_after_seconds ?? ''} 秒后重试`)
-    } else {
-      setMsg((r.data.message as string) || '登录失败')
+  const [themeMode, setThemeMode] = useState<ThemeMode>(readTheme)
+  const [auth, setAuth] = useState<AuthStatus | null>(null)
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
+  const [role, setRole] = useState<Role>('guest')
+  const [loadState, setLoadState] = useState<LoadState>('loading')
+  const [reloadKey, setReloadKey] = useState(0)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('localhub.sidebar') === 'collapsed'
+    } catch {
+      return false
     }
-  }
+  })
+  const [toast, setToast] = useState<ToastMessage | null>(null)
+  const toastCounter = useRef(0)
 
-  async function logout() {
-    setBusy(true)
-    await post('/api/auth/logout', {})
-    setBusy(false)
-    load()
-  }
+  const notify = useCallback((text: string, tone: ToastTone = 'info') => {
+    toastCounter.current += 1
+    setToast({ id: toastCounter.current, text, tone })
+  }, [])
 
-  async function changePassword(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    setBusy(true)
-    setMsg('')
-    const r = await post('/api/auth/password', {
-      current_password: form.get('current_password'),
-      new_password: form.get('new_password'),
+  useEffect(() => {
+    persistTheme(themeMode)
+    applyTheme(themeMode)
+    if (themeMode !== 'auto') return
+    return watchSystemTheme(() => applyTheme('auto'))
+  }, [themeMode])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 3200)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoadState('loading')
+    Promise.all([loadAuth(controller.signal), loadBookmarks(controller.signal)])
+      .then(([status, list]) => {
+        setAuth(status)
+        setRole(list.role)
+        setBookmarks(list.items)
+        setLoadState('ready')
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return
+        setLoadState('error')
+        if (error instanceof APIError) {
+          notify(error.status === 503 ? '服务暂时不可用' : '书签加载失败', 'error')
+        } else {
+          notify('无法连接 LocalHub', 'error')
+        }
+      })
+    return () => controller.abort()
+  }, [reloadKey, notify])
+
+  const changeTheme = useCallback((mode: ThemeMode) => {
+    setThemeMode(mode)
+  }, [])
+
+  const toggleSidebar = useCallback(() => {
+    setCollapsed((value) => {
+      const next = !value
+      try {
+        localStorage.setItem('localhub.sidebar', next ? 'collapsed' : 'expanded')
+      } catch {
+        /* 存储失败不影响本次交互 */
+      }
+      return next
     })
-    setBusy(false)
-    setMsg(
-      r.ok
-        ? '密码已修改，其他设备的登录会话已失效'
-        : (r.data.message as string) || '修改失败',
-    )
-    if (r.ok) {
-      ;(e.target as HTMLFormElement).reset()
-    }
+  }, [])
+
+  const refresh = useCallback(
+    (message?: string) => {
+      if (message) notify(message, 'success')
+      setReloadKey((value) => value + 1)
+    },
+    [notify],
+  )
+
+  const openAccount = useCallback(() => setAccountOpen(true), [])
+  const closeAccount = useCallback(() => setAccountOpen(false), [])
+
+  function openNavigation(label: string) {
+    notify(`「${label}」将在后续批次开放`)
   }
+
+  const currentRole: Role = auth?.role ?? role
 
   return (
-    <main className="page">
-      <section className="card">
-        <h1>LocalHub</h1>
-        <p className="muted">P1.1 账户与权限基础：单管理员登录、访客只读公开页面。</p>
+    <div className="app-shell">
+      <div className="ambient ambient-one" aria-hidden="true" />
+      <div className="ambient ambient-two" aria-hidden="true" />
 
-        {msg && <p className="bad">{msg}</p>}
+      <aside className={`sidebar${collapsed ? ' is-collapsed' : ''}`} aria-label="主导航">
+        <div className="sidebar-head">
+          <div className="brand">
+            <BrandMark size={36} />
+            <div className="brand-copy">
+              <strong>LocalHub</strong>
+              <span>Home</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="icon-button collapse-button"
+            onClick={toggleSidebar}
+            aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
+            aria-expanded={!collapsed}
+            title={collapsed ? '展开侧边栏' : '收起侧边栏'}
+          >
+            {collapsed ? <ChevronRightIcon size={17} /> : <ChevronLeftIcon size={17} />}
+          </button>
+        </div>
 
-        {!status && <p className="muted">正在读取状态…</p>}
+        <nav className="sidebar-nav">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const active = item.id === 'home'
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`nav-item${active ? ' is-active' : ''}`}
+                aria-current={active ? 'page' : undefined}
+                title={collapsed ? item.label : undefined}
+                onClick={() => !active && openNavigation(item.label)}
+              >
+                <Icon size={19} />
+                <span>{item.label}</span>
+              </button>
+            )
+          })}
+        </nav>
 
-        {status && !status.authenticated && (
-          <>
-            {status.needs_setup ? (
-              <p className="warn">
-                管理员尚未初始化：请设置环境变量 LOCALHUB_ADMIN_PASSWORD（12-72 字节）后重启容器。
-              </p>
-            ) : (
-              <form onSubmit={login} className="form">
-                <label>
-                  用户名
-                  <input name="username" defaultValue="admin" autoComplete="username" />
-                </label>
-                <label>
-                  密码
-                  <input name="password" type="password" autoComplete="current-password" required />
-                </label>
-                <button disabled={busy}>登录</button>
-              </form>
+        <div className="sidebar-foot">
+          <button type="button" className="account-row" onClick={openAccount} aria-label="打开账户面板">
+            <span className="avatar" aria-hidden="true">
+              {avatarText(auth, currentRole)}
+            </span>
+            <span className="account-copy">
+              <strong>{auth?.authenticated ? auth.username : '访客'}</strong>
+              <span>{roleName(currentRole)}</span>
+            </span>
+            <ChevronRightIcon size={15} />
+          </button>
+
+          <div className="foot-theme">
+            <span className="foot-label">外观</span>
+            <ThemeSwitcher mode={themeMode} onChange={changeTheme} compact={collapsed} />
+          </div>
+        </div>
+      </aside>
+
+      <header className="mobile-topbar">
+        <div className="mobile-brand">
+          <BrandMark size={32} />
+          <div>
+            <strong>LocalHub</strong>
+            <span>Home</span>
+          </div>
+        </div>
+        <div className="mobile-actions">
+          <ThemeSwitcher mode={themeMode} onChange={changeTheme} compact />
+          <button type="button" className="avatar avatar-button" onClick={openAccount} aria-label="打开账户面板">
+            {avatarText(auth, currentRole)}
+          </button>
+        </div>
+      </header>
+
+      <main className="main-content">
+        <section className="content-inner" aria-labelledby="page-title">
+          <header className="page-heading">
+            <h1 id="page-title">书签</h1>
+            {loadState === 'error' && (
+              <button type="button" className="icon-button" onClick={() => refresh()} aria-label="重新加载书签" title="重新加载">
+                <RefreshIcon size={18} />
+              </button>
             )}
-            <p className="muted">访客可直接访问本页与 /health，管理员接口一律由后端拒绝。</p>
-          </>
-        )}
+          </header>
 
-        {status && status.authenticated && (
-          <>
-            <p>
-              已登录：<strong>{status.username}</strong>（管理员）
-            </p>
-            <p className="muted">会话到期：{status.session_expires_at || '—'}</p>
-            <form onSubmit={changePassword} className="form">
-              <label>
-                当前密码
-                <input name="current_password" type="password" autoComplete="current-password" required />
-              </label>
-              <label>
-                新密码（12-72 字节）
-                <input name="new_password" type="password" autoComplete="new-password" required minLength={12} />
-              </label>
-              <button disabled={busy}>修改密码</button>
-            </form>
-            <button className="ghost" onClick={logout} disabled={busy}>
-              退出登录
+          {loadState === 'loading' && (
+            <div className="bookmark-grid skeleton-grid" aria-busy="true" aria-label="正在加载书签">
+              {Array.from({ length: 8 }, (_, index) => (
+                <div className="bookmark-card skeleton-card" data-size={index === 0 ? 'large' : 'medium'} key={index}>
+                  <span className="skeleton-icon" />
+                  <span className="skeleton-name" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {loadState === 'error' && (
+            <div className="state-card" role="alert">
+              <span className="state-icon">
+                <WifiOffIcon size={28} />
+              </span>
+              <h2>无法加载书签</h2>
+              <p>连接服务失败，或当前会话已失效。</p>
+              <button type="button" className="primary-button" onClick={() => refresh()}>
+                <RefreshIcon size={17} />
+                重新加载
+              </button>
+            </div>
+          )}
+
+          {loadState === 'ready' && bookmarks.length === 0 && (
+            <div className="state-card">
+              <span className="state-icon">
+                <FolderIcon size={30} />
+              </span>
+              <h2>{currentRole === 'admin' ? '书签库还是空的' : '暂时没有公开书签'}</h2>
+              <p>{currentRole === 'admin' ? '添加书签后，它们会按排序出现在这里。' : '管理员公开书签后，会显示在这里。'}</p>
+            </div>
+          )}
+
+          {loadState === 'ready' && bookmarks.length > 0 && (
+            <div className="bookmark-grid" aria-label="书签列表">
+              {bookmarks.map((bookmark, index) => (
+                <BookmarkCard bookmark={bookmark} index={index} key={bookmark.id} />
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
+
+      <nav className="mobile-nav" aria-label="移动端导航">
+        {mobileNavItems.map((item) => {
+          const Icon = item.icon
+          const active = item.id === 'home'
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`mobile-nav-item${active ? ' is-active' : ''}`}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => {
+                if (item.id === 'account') openAccount()
+                else if (!active) openNavigation(item.label)
+              }}
+            >
+              <Icon size={22} />
+              <span>{item.label}</span>
             </button>
-          </>
-        )}
+          )
+        })}
+      </nav>
 
-        {health && (
-          <dl>
-            <div>
-              <dt>服务</dt>
-              <dd>
-                {health.status}（{health.version}）
-              </dd>
-            </div>
-            <div>
-              <dt>数据库</dt>
-              <dd>
-                {health.database.status} / schema v{health.database.schema_version}
-              </dd>
-            </div>
-            <div>
-              <dt>/data</dt>
-              <dd>{health.data.writable ? '可写' : '不可写'}</dd>
-            </div>
-            <div>
-              <dt>进程</dt>
-              <dd>
-                uid {health.process.uid} / gid {health.process.gid}
-                {health.process.is_root ? '（root）' : '（非 root）'}
-              </dd>
-            </div>
-          </dl>
-        )}
-      </section>
-    </main>
+      {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
+
+      {accountOpen && <AccountSheet auth={auth} onClose={closeAccount} onRefresh={refresh} />}
+    </div>
   )
 }

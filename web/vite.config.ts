@@ -8,9 +8,10 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    // 本地开发时把 /health 代理到 Go 服务
+    // 本地开发时把健康检查与业务 API 代理到 Go 服务
     proxy: {
-      '/health': 'http://127.0.0.1:11030',
+      '/health': { target: 'http://127.0.0.1:11030', changeOrigin: false },
+      '/api': { target: 'http://127.0.0.1:11030', changeOrigin: false },
     },
   },
 })

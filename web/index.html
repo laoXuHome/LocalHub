@@ -2,8 +2,30 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LocalHub · P0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="LocalHub 本地书签与服务入口" />
+    <meta name="theme-color" content="#f3f4f9" />
+    <title>LocalHub · 书签</title>
+    <script>
+      (function () {
+        try {
+          var key = 'localhub.theme'
+          var mode = localStorage.getItem(key)
+          if (mode !== 'light' && mode !== 'dark' && mode !== 'auto') mode = 'auto'
+          var dark = mode === 'auto'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            : mode === 'dark'
+          var root = document.documentElement
+          root.dataset.theme = dark ? 'dark' : 'light'
+          root.dataset.themeMode = mode
+          root.style.colorScheme = dark ? 'dark' : 'light'
+          var meta = document.querySelector('meta[name="theme-color"]')
+          if (meta) meta.setAttribute('content', dark ? '#0b0c11' : '#f3f4f9')
+        } catch (error) {
+          /* 首屏主题预置失败时由 React 兜底 */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
