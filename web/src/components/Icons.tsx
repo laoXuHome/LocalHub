@@ -174,6 +174,68 @@ export function ShieldIcon(props: IconProps) {
   )
 }
 
+export function PencilIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m4 20 4.2-1 11-11a2.4 2.4 0 0 0-3.2-3.2l-11 11L4 20Z" />
+      <path d="m14.5 6.5 3 3" />
+    </Svg>
+  )
+}
+
+export function PlusIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </Svg>
+  )
+}
+
+export function UndoIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9 7H5v-4" />
+      <path d="M5.5 7.5A7.5 7.5 0 1 1 5 14" />
+    </Svg>
+  )
+}
+
+export function RedoIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M15 7h4v-4" />
+      <path d="M18.5 7.5A7.5 7.5 0 1 0 19 14" />
+    </Svg>
+  )
+}
+
+export function EyeIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </Svg>
+  )
+}
+
+export function SaveIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5 3.5h11l3 3V21H5z" />
+      <path d="M8 3.5v6h8v-6M8 21v-7h8v7" />
+    </Svg>
+  )
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 7h16M9 7V4h6v3M6.5 7l1 14h11l1-14" />
+      <path d="M10 11v6M14 11v6" />
+    </Svg>
+  )
+}
+
 export function BrandMark({ size = 36 }: { size?: number }) {
   const rawId = useId()
   const gradientId = `brand-${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`

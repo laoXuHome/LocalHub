@@ -300,11 +300,13 @@ func (s *server) routes() http.Handler {
 
 	// 书签：公开读取按权限过滤；管理操作全部走后端鉴权。
 	mux.HandleFunc("GET /api/bookmarks", s.handlePublicBookmarks)
+	mux.HandleFunc("GET /api/bookmarks/layout", s.handlePublicBookmarkLayout)
 	mux.HandleFunc("GET /api/bookmarks/{id}", s.handlePublicBookmark)
 	mux.Handle("GET /api/admin/bookmarks", s.requireAdmin(http.HandlerFunc(s.handleAdminListBookmarks)))
 	mux.Handle("POST /api/admin/bookmarks", s.requireAdmin(http.HandlerFunc(s.handleAdminCreateBookmark)))
 	mux.Handle("POST /api/admin/bookmarks/batch-delete", s.requireAdmin(http.HandlerFunc(s.handleAdminBatchDelete)))
 	mux.Handle("POST /api/admin/bookmarks/order", s.requireAdmin(http.HandlerFunc(s.handleAdminReorder)))
+	mux.Handle("PUT /api/admin/bookmarks/layout", s.requireAdmin(http.HandlerFunc(s.handleAdminSaveBookmarkLayout)))
 	mux.Handle("GET /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminGetBookmark)))
 	mux.Handle("PUT /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminUpdateBookmark)))
 	mux.Handle("DELETE /api/admin/bookmarks/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminDeleteBookmark)))

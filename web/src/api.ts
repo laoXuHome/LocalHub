@@ -1,4 +1,4 @@
-import type { AuthStatus, BookmarksResponse } from './types'
+import type { AuthStatus, Bookmark, BookmarkInput, BookmarksResponse, LayoutResponse } from './types'
 
 export class APIError extends Error {
   status: number
@@ -28,16 +28,20 @@ async function getJSON<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T
 }
 
-async function postJSON<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+async function sendJSON<T>(path: string, method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', body?: unknown, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {
-    method: 'POST',
+    method,
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   })
   if (!response.ok) throw await parseError(response)
   return (await response.json()) as T
+}
+
+async function postJSON<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  return sendJSON<T>(path, 'POST', body, signal)
 }
 
 export function loadAuth(signal?: AbortSignal): Promise<AuthStatus> {
@@ -46,6 +50,10 @@ export function loadAuth(signal?: AbortSignal): Promise<AuthStatus> {
 
 export function loadBookmarks(signal?: AbortSignal): Promise<BookmarksResponse> {
   return getJSON<BookmarksResponse>('/api/bookmarks', signal)
+}
+
+export function loadLayout(signal?: AbortSignal): Promise<LayoutResponse> {
+  return getJSON<LayoutResponse>('/api/bookmarks/layout', signal)
 }
 
 export function login(username: string, password: string): Promise<Record<string, unknown>> {
@@ -61,4 +69,36 @@ export function changePassword(currentPassword: string, newPassword: string): Pr
     current_password: currentPassword,
     new_password: newPassword,
   })
+}
+
+export function createBookmark(input: BookmarkInput): Promise<Bookmark> {
+  return postJSON<Bookmark>('/api/admin/bookmarks', input)
+}
+
+export function updateBookmark(id: number, input: BookmarkInput): Promise<Bookmark> {
+  return sendJSON<Bookmark>(`/api/admin/bookmarks/${id}`, 'PUT', input)
+}
+
+export function deleteBookmark(id: number): Promise<Record<string, unknown>> {
+  return sendJSON(`/api/admin/bookmarks/${id}`, 'DELETE')
+}
+
+export function saveLayout(layout: LayoutResponse): Promise<LayoutResponse> {
+  return sendJSON<LayoutResponse>('/api/admin/bookmarks/layout', 'PUT', layout)
+}
+
+export function uploadBookmarkIcon(id: number, file: File): Promise<Bookmark> {
+  return fetch(`/api/admin/bookmarks/${id}/icon`, {
+    method: 'PUT',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  }).then(async (response) => {
+    if (!response.ok) throw await parseError(response)
+    return (await response.json()) as Bookmark
+  })
+}
+
+export function refreshFavicon(id: number): Promise<Bookmark | Record<string, unknown>> {
+  return postJSON(`/api/admin/bookmarks/${id}/favicon`, {})
 }

@@ -1,11 +1,38 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { APIError, loadAuth, loadBookmarks } from './api'
-import type { AuthStatus, Bookmark, Role, ThemeMode } from './types'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  APIError,
+  createBookmark,
+  deleteBookmark,
+  loadAuth,
+  loadBookmarks,
+  loadLayout,
+  refreshFavicon,
+  saveLayout,
+  updateBookmark,
+  uploadBookmarkIcon,
+} from './api'
+import type { AuthStatus, Bookmark, BookmarkInput, CardSize, LayoutDevice, LayoutResponse, Role, ThemeMode } from './types'
 import { applyTheme, persistTheme, readTheme, watchSystemTheme } from './theme'
 import { BookmarkCard } from './components/BookmarkCard'
 import { AccountSheet } from './components/AccountSheet'
 import { ThemeSwitcher } from './components/ThemeSwitcher'
 import { Toast, type ToastMessage, type ToastTone } from './components/Toast'
+import { BookmarkDrawer } from './components/BookmarkDrawer'
+import { ConfirmDialog, type ConfirmRequest } from './components/ConfirmDialog'
+import { EditToolbar } from './components/EditToolbar'
+import {
+  appendEntry,
+  bookmarksByLayout,
+  buildLayouts,
+  findEntry,
+  layoutPayload,
+  moveEntry,
+  removeEntry,
+  resizeEntry,
+  toDraft,
+  type DraftBookmark,
+  type Layouts,
+} from './editor'
 import {
   BookmarkIcon,
   BrandMark,
@@ -13,6 +40,8 @@ import {
   ChevronRightIcon,
   FolderIcon,
   HomeIcon,
+  PencilIcon,
+  PlusIcon,
   RefreshIcon,
   SearchIcon,
   ServerIcon,
@@ -21,6 +50,7 @@ import {
 } from './components/Icons'
 
 type LoadState = 'loading' | 'ready' | 'error'
+type Snapshot = { bookmarks: DraftBookmark[]; layouts: Layouts; deletedIDs: number[] }
 
 const navItems = [
   { id: 'home', label: '首页', icon: HomeIcon },
@@ -29,10 +59,9 @@ const navItems = [
   { id: 'search', label: '搜索', icon: SearchIcon },
 ] as const
 
-const mobileNavItems = [
-  ...navItems,
-  { id: 'account', label: '我的', icon: UserIcon },
-] as const
+const mobileNavItems = [...navItems, { id: 'account', label: '我的', icon: UserIcon }] as const
+
+const emptyLayouts: Layouts = { desktop: [], mobile: [] }
 
 function roleName(role: Role): string {
   return role === 'admin' ? '管理员' : '访客'
@@ -43,11 +72,25 @@ function avatarText(auth: AuthStatus | null, role: Role): string {
   return role === 'admin' ? 'A' : '访'
 }
 
+function initialDevice(): LayoutDevice {
+  if (typeof window === 'undefined') return 'desktop'
+  return window.matchMedia?.('(max-width: 900px)').matches ? 'mobile' : 'desktop'
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof APIError) {
+    if (error.status === 401 || error.status === 403) return '管理会话已失效，请重新登录后再保存'
+    return error.message || '请求失败'
+  }
+  return '网络异常，请稍后重试'
+}
+
 export default function App() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(readTheme)
   const [auth, setAuth] = useState<AuthStatus | null>(null)
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
   const [role, setRole] = useState<Role>('guest')
+  const [serverLayout, setServerLayout] = useState<LayoutResponse>({ desktop: [], mobile: [] })
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [reloadKey, setReloadKey] = useState(0)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -60,6 +103,26 @@ export default function App() {
   })
   const [toast, setToast] = useState<ToastMessage | null>(null)
   const toastCounter = useRef(0)
+
+  // P3.2 编辑态。只有管理员进入后才会持有这些状态。
+  const [editing, setEditing] = useState(false)
+  const [preview, setPreview] = useState(false)
+  const [drafts, setDrafts] = useState<DraftBookmark[]>([])
+  const [layouts, setLayouts] = useState<Layouts>(emptyLayouts)
+  const [deletedIDs, setDeletedIDs] = useState<number[]>([])
+  const [device, setDevice] = useState<LayoutDevice>(initialDevice)
+  const [history, setHistory] = useState<Snapshot[]>([])
+  const [historyIndex, setHistoryIndex] = useState(0)
+  const [drawer, setDrawer] = useState<{ open: boolean; initial: DraftBookmark | null }>({ open: false, initial: null })
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [dragKey, setDragKey] = useState<string | null>(null)
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null)
+
+  const historyRef = useRef<Snapshot[]>([])
+  const historyIndexRef = useRef(0)
+  const dragOverRef = useRef<string | null>(null)
+  const createdIDsRef = useRef<Map<string, number>>(new Map())
 
   const notify = useCallback((text: string, tone: ToastTone = 'info') => {
     toastCounter.current += 1
@@ -82,11 +145,12 @@ export default function App() {
   useEffect(() => {
     const controller = new AbortController()
     setLoadState('loading')
-    Promise.all([loadAuth(controller.signal), loadBookmarks(controller.signal)])
-      .then(([status, list]) => {
+    Promise.all([loadAuth(controller.signal), loadBookmarks(controller.signal), loadLayout(controller.signal)])
+      .then(([status, list, layout]) => {
         setAuth(status)
         setRole(list.role)
         setBookmarks(list.items)
+        setServerLayout(layout)
         setLoadState('ready')
       })
       .catch((error: unknown) => {
@@ -101,9 +165,29 @@ export default function App() {
     return () => controller.abort()
   }, [reloadKey, notify])
 
-  const changeTheme = useCallback((mode: ThemeMode) => {
-    setThemeMode(mode)
-  }, [])
+  // 非编辑态跟随屏幕断点切换布局；编辑态保持当前设备，避免拖动中被重置。
+  useEffect(() => {
+    const onResize = () => {
+      if (!editing) setDevice(initialDevice())
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [editing])
+
+  const currentRole: Role = auth?.role ?? role
+  const isAdmin = currentRole === 'admin' && Boolean(auth?.authenticated)
+
+  useEffect(() => {
+    if (editing && !isAdmin) {
+      setEditing(false)
+      setPreview(false)
+      setDrawer({ open: false, initial: null })
+      setDrafts([])
+      setLayouts(emptyLayouts)
+    }
+  }, [editing, isAdmin])
+
+  const changeTheme = useCallback((mode: ThemeMode) => setThemeMode(mode), [])
 
   const toggleSidebar = useCallback(() => {
     setCollapsed((value) => {
@@ -132,10 +216,292 @@ export default function App() {
     notify(`「${label}」将在后续批次开放`)
   }
 
-  const currentRole: Role = auth?.role ?? role
+  const viewDrafts = useMemo(() => bookmarks.map(toDraft), [bookmarks])
+  const viewLayouts = useMemo(() => buildLayouts(viewDrafts, serverLayout), [viewDrafts, serverLayout])
+  const visibleDrafts = useMemo(
+    () => bookmarksByLayout(editing ? drafts : viewDrafts, (editing ? layouts : viewLayouts)[device]),
+    [editing, drafts, viewDrafts, layouts, viewLayouts, device],
+  )
+  const currentEntries = (editing ? layouts : viewLayouts)[device]
+  const isDirty = editing && historyIndex > 0
+  const canUndo = editing && historyIndex > 0
+  const canRedo = editing && historyIndex < history.length - 1
+
+  function pushHistory(snapshot: Snapshot) {
+    const next = historyRef.current.slice(0, historyIndexRef.current + 1)
+    next.push(snapshot)
+    historyRef.current = next
+    historyIndexRef.current = next.length - 1
+    setHistory(next)
+    setHistoryIndex(next.length - 1)
+    setDrafts(snapshot.bookmarks)
+    setLayouts(snapshot.layouts)
+    setDeletedIDs(snapshot.deletedIDs)
+  }
+
+  function resetEditor(baseBookmarks: Bookmark[], baseLayout: LayoutResponse) {
+    const baseDrafts = baseBookmarks.map(toDraft)
+    const baseLayouts = buildLayouts(baseDrafts, baseLayout)
+    const snapshot: Snapshot = { bookmarks: baseDrafts, layouts: baseLayouts, deletedIDs: [] }
+    historyRef.current = [snapshot]
+    historyIndexRef.current = 0
+    createdIDsRef.current = new Map()
+    setHistory([snapshot])
+    setHistoryIndex(0)
+    setDrafts(baseDrafts)
+    setLayouts(baseLayouts)
+    setDeletedIDs([])
+    setEditing(true)
+    setPreview(false)
+    setDevice(initialDevice())
+  }
+
+  const beginEditing = useCallback(() => {
+    if (!isAdmin) return
+    resetEditor(bookmarks, serverLayout)
+  }, [isAdmin, bookmarks, serverLayout])
+
+  const leaveEditor = useCallback(() => {
+    setEditing(false)
+    setPreview(false)
+    setDrawer({ open: false, initial: null })
+    setDrafts([])
+    setLayouts(emptyLayouts)
+    setDeletedIDs([])
+    setHistory([])
+    setHistoryIndex(0)
+    setDragKey(null)
+    setDragOverKey(null)
+  }, [])
+
+  const requestCancel = useCallback(() => {
+    if (!isDirty) {
+      leaveEditor()
+      return
+    }
+    setConfirm({
+      title: '放弃未保存修改？',
+      message: '当前新增、编辑、删除、排序和尺寸修改尚未保存，离开后会全部丢失。',
+      confirmLabel: '放弃修改',
+      tone: 'danger',
+      onConfirm: leaveEditor,
+    })
+  }, [isDirty, leaveEditor])
+
+  useEffect(() => {
+    if (!editing || !isDirty) return
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [editing, isDirty])
+
+  function undo() {
+    if (!canUndo) return
+    const nextIndex = historyIndexRef.current - 1
+    const snapshot = historyRef.current[nextIndex]
+    if (!snapshot) return
+    historyIndexRef.current = nextIndex
+    setHistoryIndex(nextIndex)
+    setDrafts(snapshot.bookmarks)
+    setLayouts(snapshot.layouts)
+    setDeletedIDs(snapshot.deletedIDs)
+    setDrawer({ open: false, initial: null })
+  }
+
+  function redo() {
+    if (!canRedo) return
+    const nextIndex = historyIndexRef.current + 1
+    const snapshot = historyRef.current[nextIndex]
+    if (!snapshot) return
+    historyIndexRef.current = nextIndex
+    setHistoryIndex(nextIndex)
+    setDrafts(snapshot.bookmarks)
+    setLayouts(snapshot.layouts)
+    setDeletedIDs(snapshot.deletedIDs)
+    setDrawer({ open: false, initial: null })
+  }
+
+  function submitDraft(next: DraftBookmark) {
+    const exists = drafts.some((bookmark) => bookmark.key === next.key)
+    const nextBookmarks = exists ? drafts.map((bookmark) => (bookmark.key === next.key ? next : bookmark)) : [...drafts, next]
+    let nextLayouts = layouts
+    if (!exists) {
+      nextLayouts = {
+        desktop: appendEntry(layouts.desktop, next.key, 'medium'),
+        mobile: appendEntry(layouts.mobile, next.key, 'medium'),
+      }
+    }
+    setDrawer({ open: false, initial: null })
+    pushHistory({ bookmarks: nextBookmarks, layouts: nextLayouts, deletedIDs })
+  }
+
+  function requestDelete(bookmark: DraftBookmark) {
+    setConfirm({
+      title: '删除书签？',
+      message: `确认删除「${bookmark.name}」？该操作会在保存后生效，删除前还可以撤销。`,
+      confirmLabel: '删除',
+      tone: 'danger',
+      onConfirm: () => {
+        const serverID = bookmark.serverId ?? createdIDsRef.current.get(bookmark.key) ?? (bookmark.isNew ? undefined : bookmark.id)
+        const nextDeleted = serverID && serverID > 0 && !deletedIDs.includes(serverID) ? [...deletedIDs, serverID] : deletedIDs
+        const nextBookmarks = drafts.filter((item) => item.key !== bookmark.key)
+        const nextLayouts = {
+          desktop: removeEntry(layouts.desktop, bookmark.key),
+          mobile: removeEntry(layouts.mobile, bookmark.key),
+        }
+        setDrawer({ open: false, initial: null })
+        pushHistory({ bookmarks: nextBookmarks, layouts: nextLayouts, deletedIDs: nextDeleted })
+      },
+    })
+  }
+
+  function changeSize(key: string, size: CardSize) {
+    const nextEntries = resizeEntry(layouts[device], key, size)
+    if (nextEntries === layouts[device]) return
+    pushHistory({ bookmarks: drafts, layouts: { ...layouts, [device]: nextEntries }, deletedIDs })
+  }
+
+  const finishDrag = useCallback(() => {
+    const source = dragKey
+    const target = dragOverRef.current
+    if (source && target && source !== target) {
+      const nextEntries = moveEntry(layouts[device], source, target)
+      if (nextEntries !== layouts[device]) {
+        pushHistory({ bookmarks: drafts, layouts: { ...layouts, [device]: nextEntries }, deletedIDs })
+      }
+    }
+    setDragKey(null)
+    dragOverRef.current = null
+    setDragOverKey(null)
+  }, [dragKey, layouts, drafts, deletedIDs, device])
+
+  useEffect(() => {
+    if (!dragKey) return
+    const move = (event: PointerEvent) => {
+      const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null
+      const card = element?.closest('[data-key]') as HTMLElement | null
+      const key = card?.dataset.key ?? null
+      dragOverRef.current = key
+      setDragOverKey(key)
+    }
+    const up = () => finishDrag()
+    window.addEventListener('pointermove', move, { passive: true })
+    window.addEventListener('pointerup', up, { once: true })
+    window.addEventListener('pointercancel', up, { once: true })
+    return () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+    }
+  }, [dragKey, finishDrag])
+
+  function startDrag(key: string, event: React.PointerEvent<HTMLButtonElement>) {
+    if (saving) return
+    event.preventDefault()
+    event.stopPropagation()
+    dragOverRef.current = null
+    setDragOverKey(null)
+    setDragKey(key)
+  }
+
+  function inputFor(draft: DraftBookmark): BookmarkInput {
+    const input: BookmarkInput = {
+      name: draft.name,
+      lan_url: draft.lan_url,
+      wan_url: draft.wan_url,
+      description: draft.description,
+      enabled: draft.enabled,
+      visibility: draft.visibility,
+      open_mode: draft.open_mode,
+      folder_path: draft.folder_path,
+    }
+    // 图标文件在最终保存时通过专用上传接口提交；表单阶段只保留本地预览。
+    // 已存在的 file 图标在未替换时也不重新发送，后端 PATCH 会保持原值。
+    if (!draft.iconBlob && draft.icon_type !== 'file') {
+      input.icon_type = draft.icon_type
+      input.icon_value = draft.icon_value
+    }
+    return input
+  }
+
+  async function persistEditor() {
+    if (saving) return
+    setSaving(true)
+    try {
+      const savedBookmarks: DraftBookmark[] = []
+      for (const draft of drafts) {
+        const knownID = draft.serverId ?? createdIDsRef.current.get(draft.key) ?? (!draft.isNew ? draft.id : undefined)
+        const input = inputFor(draft)
+        if (knownID && knownID > 0) {
+          await updateBookmark(knownID, input)
+          savedBookmarks.push({ ...draft, serverId: knownID, isNew: false })
+        } else {
+          const created = await createBookmark(input)
+          createdIDsRef.current.set(draft.key, created.id)
+          savedBookmarks.push({ ...draft, serverId: created.id, id: created.id, isNew: false })
+        }
+      }
+
+      for (const draft of savedBookmarks) {
+        const id = draft.serverId
+        if (!id) continue
+        if (draft.iconBlob) {
+          await uploadBookmarkIcon(id, draft.iconBlob)
+        }
+        if (draft.icon_type === 'favicon' && !draft.iconBlob) {
+          // 新建/编辑已触发后端自动抓取；这里显式兜底一次，失败不阻断保存。
+          try {
+            await refreshFavicon(id)
+          } catch {
+            /* favicon 抓取失败不阻塞布局保存，前端显示首字母占位 */
+          }
+        }
+      }
+
+      for (const id of deletedIDs) {
+        try {
+          await deleteBookmark(id)
+        } catch (error) {
+          if (!(error instanceof APIError) || error.status !== 404) throw error
+        }
+      }
+
+      const patchedDrafts = savedBookmarks
+      const payload = layoutPayload(layouts, patchedDrafts)
+      await saveLayout(payload)
+
+      try {
+        const [list, remote] = await Promise.all([loadBookmarks(), loadLayout()])
+        setBookmarks(list.items)
+        setServerLayout(remote)
+        setRole(list.role)
+        setLoadState('ready')
+        setSaving(false)
+        leaveEditor()
+        notify('首页书签与布局已保存', 'success')
+      } catch (reloadError) {
+        // 服务端保存已经成功，不能误报为“保存失败”；明确提示刷新失败并触发重新加载。
+        setSaving(false)
+        leaveEditor()
+        setReloadKey((value) => value + 1)
+        notify(`布局已保存，但刷新首页失败：${errorMessage(reloadError)}`, 'error')
+      }
+    } catch (error) {
+      setSaving(false)
+      notify(`保存失败：${errorMessage(error)}。当前编辑内容已保留，可重试。`, 'error')
+      if (error instanceof APIError && (error.status === 401 || error.status === 403)) {
+        setReloadKey((value) => value + 1)
+      }
+    }
+  }
+
+  const currentSize = drawer.initial ? findEntry(layouts[device], drawer.initial.key)?.size : undefined
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${editing ? ' is-editing' : ''}`}>
       <div className="ambient ambient-one" aria-hidden="true" />
       <div className="ambient ambient-two" aria-hidden="true" />
 
@@ -218,13 +584,40 @@ export default function App() {
       <main className="main-content">
         <section className="content-inner" aria-labelledby="page-title">
           <header className="page-heading">
-            <h1 id="page-title">书签</h1>
+            <div>
+              <h1 id="page-title">书签</h1>
+              {editing && <span className="heading-mode">{preview ? '预览模式' : '编辑模式'}</span>}
+            </div>
+            {loadState === 'ready' && isAdmin && !editing && (
+              <button type="button" className="edit-entry" onClick={beginEditing}>
+                <PencilIcon size={16} />
+                编辑首页
+              </button>
+            )}
             {loadState === 'error' && (
               <button type="button" className="icon-button" onClick={() => refresh()} aria-label="重新加载书签" title="重新加载">
                 <RefreshIcon size={18} />
               </button>
             )}
           </header>
+
+          {editing && (
+            <EditToolbar
+              device={device}
+              onDeviceChange={setDevice}
+              dirty={isDirty}
+              preview={preview}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              saving={saving}
+              onAdd={() => setDrawer({ open: true, initial: null })}
+              onUndo={undo}
+              onRedo={redo}
+              onPreview={() => setPreview((value) => !value)}
+              onCancel={requestCancel}
+              onSave={persistEditor}
+            />
+          )}
 
           {loadState === 'loading' && (
             <div className="bookmark-grid skeleton-grid" aria-busy="true" aria-label="正在加载书签">
@@ -251,21 +644,47 @@ export default function App() {
             </div>
           )}
 
-          {loadState === 'ready' && bookmarks.length === 0 && (
+          {loadState === 'ready' && visibleDrafts.length === 0 && (
             <div className="state-card">
               <span className="state-icon">
                 <FolderIcon size={30} />
               </span>
-              <h2>{currentRole === 'admin' ? '书签库还是空的' : '暂时没有公开书签'}</h2>
-              <p>{currentRole === 'admin' ? '添加书签后，它们会按排序出现在这里。' : '管理员公开书签后，会显示在这里。'}</p>
+              <h2>{editing ? '还没有书签' : currentRole === 'admin' ? '书签库还是空的' : '暂时没有公开书签'}</h2>
+              <p>
+                {editing
+                  ? '新增书签后，它会以中号卡片加入桌面和移动端布局。'
+                  : currentRole === 'admin'
+                    ? '点击右上角「编辑首页」添加第一枚书签。'
+                    : '管理员公开书签后，会显示在这里。'}
+              </p>
+              {editing && (
+                <button type="button" className="primary-button" onClick={() => setDrawer({ open: true, initial: null })}>
+                  <PlusIcon size={16} />
+                  新增书签
+                </button>
+              )}
             </div>
           )}
 
-          {loadState === 'ready' && bookmarks.length > 0 && (
-            <div className="bookmark-grid" aria-label="书签列表">
-              {bookmarks.map((bookmark, index) => (
-                <BookmarkCard bookmark={bookmark} index={index} key={bookmark.id} />
-              ))}
+          {loadState === 'ready' && visibleDrafts.length > 0 && (
+            <div className={`bookmark-grid${editing && !preview ? ' is-editing-grid' : ''}`} aria-label={preview ? '首页预览' : '书签列表'}>
+              {visibleDrafts.map((bookmark, index) => {
+                const size = editing ? findEntry(currentEntries, bookmark.key)?.size ?? 'medium' : currentEntries.find((entry) => entry.key === bookmark.key)?.size ?? 'medium'
+                return (
+                  <BookmarkCard
+                    bookmark={bookmark}
+                    index={index}
+                    size={size}
+                    key={bookmark.key}
+                    editing={editing && !preview}
+                    dragOver={dragOverKey === bookmark.key}
+                    dataKey={bookmark.key}
+                    onEdit={() => setDrawer({ open: true, initial: bookmark })}
+                    onSizeChange={(nextSize) => changeSize(bookmark.key, nextSize)}
+                    onDragStart={(event) => startDrag(bookmark.key, event)}
+                  />
+                )
+              })}
             </div>
           )}
         </section>
@@ -296,6 +715,17 @@ export default function App() {
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
       {accountOpen && <AccountSheet auth={auth} onClose={closeAccount} onRefresh={refresh} />}
+      {drawer.open && (
+        <BookmarkDrawer
+          open={drawer.open}
+          initial={drawer.initial}
+          currentSize={currentSize}
+          onClose={() => setDrawer({ open: false, initial: null })}
+          onSubmit={submitDraft}
+          onRequestDelete={requestDelete}
+        />
+      )}
+      {confirm && <ConfirmDialog request={confirm} onCancel={() => setConfirm(null)} />}
     </div>
   )
 }

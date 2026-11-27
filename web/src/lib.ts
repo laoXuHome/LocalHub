@@ -1,4 +1,4 @@
-import type { Bookmark, ResolvedTheme, ThemeMode } from './types'
+import type { Bookmark, CardSize, ResolvedTheme, ThemeMode } from './types'
 
 export const themeOrder: ThemeMode[] = ['auto', 'light', 'dark']
 
@@ -7,8 +7,6 @@ export const themeCopy: Record<ThemeMode, { label: string; hint: string }> = {
   light: { label: '浅色', hint: '始终使用浅色' },
   dark: { label: '深色', hint: '始终使用深色' },
 }
-
-export type CardSize = 'large' | 'medium' | 'small'
 
 export function isThemeMode(value: string | null): value is ThemeMode {
   return value === 'auto' || value === 'light' || value === 'dark'

@@ -1,0 +1,27 @@
+### 未登录 PUT /api/admin/bookmarks/layout
+HTTP/1.1 401 Unauthorized
+Cache-Control: no-store
+Content-Type: application/json; charset=utf-8
+Referrer-Policy: same-origin
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Date: Fri, 27 Nov 2026 18:00:44 GMT
+Content-Length: 59
+
+{"error":"unauthorized","message":"需要管理员登录"}
+
+### 未登录 GET /api/bookmarks/layout
+desktop_ids [1, 2, 15, 3, 4, 5, 6, 7, 8, 9]
+mobile_ids [1, 2, 3, 4, 5, 6, 7, 8, 9, 15]
+
+### 未登录 GET /api/bookmarks
+total 10 role guest
+visibility ['public', 'public', 'public', 'public', 'public', 'public', 'public', 'public', 'public', 'public']
+
+### 管理员 GET /api/bookmarks/layout
+desktop_ids [1, 2, 15, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+mobile_ids [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15]
+
+### 管理员 GET /api/bookmarks
+total 14 role admin
+ids [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15]

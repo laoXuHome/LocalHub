@@ -247,6 +247,9 @@ func (s *server) handleAdminDeleteBookmark(w http.ResponseWriter, r *http.Reques
 		writeStoreErr(w, err)
 		return
 	}
+	if err := store.DeleteForBookmark(r.Context(), id); err != nil {
+		s.log.Warn("清理书签布局失败", slog.Int64("bookmark_id", id), slog.String("error", err.Error()))
+	}
 	if s.icons != nil {
 		_ = s.icons.DeleteForID(id)
 	}
@@ -272,6 +275,11 @@ func (s *server) handleAdminBatchDelete(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		writeStoreErr(w, err)
 		return
+	}
+	for _, id := range req.IDs {
+		if err := store.DeleteForBookmark(r.Context(), id); err != nil {
+			s.log.Warn("清理书签布局失败", slog.Int64("bookmark_id", id), slog.String("error", err.Error()))
+		}
 	}
 	if s.icons != nil {
 		for id := range iconFiles {

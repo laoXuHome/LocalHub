@@ -1600,3 +1600,756 @@ img {
     background: var(--surface-solid);
   }
 }
+
+/* ============ P3.2 首页编辑模式 ============ */
+
+.page-heading > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.heading-mode {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.edit-entry {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 620;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.edit-entry:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.edit-toolbar {
+  position: sticky;
+  z-index: 18;
+  top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: var(--surface-strong);
+  box-shadow: 0 12px 30px rgba(24, 28, 52, 0.1);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+}
+
+.edit-toolbar.is-preview {
+  border-color: rgba(98, 102, 241, 0.35);
+  background: linear-gradient(120deg, var(--accent-soft), var(--surface-strong));
+}
+
+.edit-toolbar-main,
+.edit-toolbar-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.edit-toolbar-main {
+  flex-wrap: wrap;
+}
+
+.edit-add {
+  min-height: 32px;
+  padding: 6px 11px;
+  border-radius: 9px;
+  font-size: 11.5px;
+}
+
+.toolbar-button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  font-size: 11px;
+  font-weight: 580;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.toolbar-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.device-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.device-switch button {
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.device-switch button.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.edit-state {
+  flex: 0 1 auto;
+  margin-left: 3px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.edit-state.is-dirty {
+  color: #c78426;
+}
+
+.toolbar-save {
+  min-height: 32px;
+  padding: 6px 11px;
+  border-radius: 9px;
+  font-size: 11.5px;
+}
+
+.bookmark-card--editing {
+  cursor: pointer;
+  border-style: dashed;
+  border-color: var(--border-strong);
+  animation: none;
+}
+
+.bookmark-card--editing:hover {
+  z-index: 3;
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.bookmark-card--editing.is-drag-over {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+  background: var(--accent-soft);
+  transform: scale(0.985);
+}
+
+.card-edit-controls {
+  position: absolute;
+  z-index: 4;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  box-shadow: 0 3px 10px rgba(20, 24, 45, 0.08);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.drag-handle {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.drag-dots {
+  font-size: 17px;
+  line-height: 1;
+  letter-spacing: -2px;
+}
+
+.card-size-picker {
+  display: inline-flex;
+  gap: 1px;
+  padding-left: 2px;
+  border-left: 1px solid var(--border);
+}
+
+.size-button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.size-button:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.size-button.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.bookmark-card[data-size="small"] .card-edit-controls {
+  top: 6px;
+  right: 6px;
+}
+
+.bookmark-card[data-size="small"] .bookmark-name {
+  padding-right: 74px;
+}
+
+.bookmark-card[data-size="medium"] .bookmark-name {
+  padding-right: 74px;
+}
+
+.bookmark-card[data-size="large"] .bookmark-name {
+  max-width: none;
+  padding-right: 78px;
+}
+
+.is-editing-grid {
+  grid-auto-flow: row dense;
+}
+
+/* 右侧书签抽屉 */
+
+.drawer-layer {
+  position: fixed;
+  z-index: 86;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 14px;
+  background: rgba(10, 12, 20, 0.18);
+  animation: veil-in 200ms ease both;
+}
+
+.bookmark-drawer {
+  display: flex;
+  width: min(480px, calc(100vw - 28px));
+  height: calc(100dvh - 28px);
+  flex-direction: column;
+  overflow: auto;
+  padding: 20px 20px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 24px;
+  background: var(--surface-solid);
+  box-shadow: 0 30px 80px rgba(12, 16, 34, 0.26);
+  animation: drawer-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  scrollbar-width: thin;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.drawer-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 720;
+  letter-spacing: -0.04em;
+}
+
+.drawer-form {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.drawer-form > label,
+.drawer-row > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 560;
+}
+
+.drawer-form input:not([type="checkbox"]):not([type="file"]),
+.drawer-form textarea,
+.drawer-form select {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.drawer-form textarea {
+  min-height: 74px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.drawer-form input:focus,
+.drawer-form textarea:focus,
+.drawer-form select:focus {
+  border-color: var(--accent);
+  background: var(--surface-strong);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.drawer-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.drawer-row--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.required-mark {
+  color: #d95b67;
+}
+
+.field-hint {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.icon-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface);
+}
+
+.icon-fieldset legend {
+  padding: 0 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.icon-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.icon-choice {
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-strong);
+  color: var(--muted-strong);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.icon-choice.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.icon-editor {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 10px;
+}
+
+.icon-preview {
+  display: inline-flex;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-strong);
+  color: var(--accent);
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.icon-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.icon-editor-fields {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.file-button {
+  width: auto;
+  min-height: 34px;
+  margin: 0;
+  padding: 6px 12px;
+  align-self: flex-start;
+}
+
+.switch-field {
+  justify-content: flex-end;
+}
+
+.switch-line {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  font-size: 11.5px;
+}
+
+.switch-line input {
+  accent-color: var(--accent);
+}
+
+.drawer-actions {
+  position: sticky;
+  bottom: -16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px -20px -16px;
+  padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface-solid);
+}
+
+.drawer-actions .quiet-button,
+.drawer-actions .primary-button {
+  width: auto;
+  min-height: 36px;
+  margin: 0;
+  padding: 7px 13px;
+  font-size: 11.5px;
+}
+
+.drawer-delete {
+  color: #d95b67;
+}
+
+.drawer-actions-spacer {
+  flex: 1;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+.confirm-layer {
+  position: fixed;
+  z-index: 96;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(8, 10, 18, 0.38);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  animation: veil-in 180ms ease both;
+}
+
+.confirm-dialog {
+  width: min(390px, 100%);
+  padding: 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  background: var(--surface-solid);
+  box-shadow: 0 28px 70px rgba(10, 14, 30, 0.3);
+}
+
+.confirm-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.confirm-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.confirm-dialog > p {
+  margin: 10px 0 18px;
+  color: var(--muted-strong);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirm-actions .quiet-button,
+.confirm-actions .primary-button {
+  width: auto;
+  min-height: 36px;
+  margin: 0;
+  padding: 7px 13px;
+  font-size: 11.5px;
+}
+
+.danger-button {
+  background: linear-gradient(135deg, #de5e68, #c84855);
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .page-heading > div {
+    gap: 8px;
+  }
+
+  .edit-entry {
+    min-height: 32px;
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .edit-toolbar {
+    top: calc(82px + env(safe-area-inset-top));
+    flex-wrap: wrap;
+    padding: 8px;
+    border-radius: 14px;
+  }
+
+  .edit-toolbar-main,
+  .edit-toolbar-actions {
+    flex-wrap: wrap;
+  }
+
+  .edit-toolbar-actions {
+    margin-left: auto;
+  }
+
+  .edit-state {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
+  .toolbar-button,
+  .toolbar-save,
+  .edit-add {
+    min-height: 30px;
+    padding: 5px 8px;
+    font-size: 10.5px;
+  }
+
+  .device-switch button {
+    min-height: 24px;
+    padding: 3px 7px;
+    font-size: 10px;
+  }
+
+  .bookmark-card--editing .bookmark-name,
+  .bookmark-card[data-size="large"] .bookmark-name {
+    padding-right: 78px;
+  }
+
+  .drawer-layer {
+    padding: 0;
+    background: rgba(10, 12, 20, 0.28);
+  }
+
+  .bookmark-drawer {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-width: 0;
+    border-radius: 0;
+    padding: calc(16px + env(safe-area-inset-top)) 16px 12px;
+  }
+
+  .drawer-head h2 {
+    font-size: 20px;
+  }
+
+  .drawer-row--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .drawer-row--three .switch-field {
+    grid-column: span 2;
+  }
+
+  .drawer-actions {
+    bottom: -12px;
+    margin: 8px -16px -12px;
+    padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .drawer-actions .quiet-button,
+  .drawer-actions .primary-button {
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .drawer-delete {
+    padding-inline: 8px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .edit-toolbar-main {
+    gap: 4px;
+  }
+
+  .edit-toolbar-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .edit-toolbar-actions .toolbar-button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .drawer-row,
+  .drawer-row--three {
+    grid-template-columns: 1fr;
+  }
+
+  .drawer-row--three .switch-field {
+    grid-column: auto;
+  }
+
+  .card-edit-controls {
+    top: 6px;
+    right: 6px;
+  }
+
+  .size-button {
+    width: 19px;
+    height: 21px;
+    font-size: 9px;
+  }
+
+  .drag-handle {
+    width: 22px;
+    height: 21px;
+  }
+
+  .bookmark-card[data-size="small"] .bookmark-name,
+  .bookmark-card[data-size="medium"] .bookmark-name {
+    padding-right: 70px;
+  }
+}

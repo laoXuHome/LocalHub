@@ -37,3 +37,31 @@ export type BookmarksResponse = {
 
 export type ThemeMode = 'auto' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
+
+export type CardSize = 'large' | 'medium' | 'small'
+export type LayoutDevice = 'desktop' | 'mobile'
+
+export type LayoutItem = {
+  id: number
+  position?: number
+  size: CardSize
+}
+
+export type LayoutResponse = {
+  desktop: LayoutItem[]
+  mobile: LayoutItem[]
+}
+
+export type BookmarkInput = {
+  name?: string
+  lan_url?: string
+  wan_url?: string
+  description?: string
+  icon_type?: string
+  icon_value?: string
+  enabled?: boolean
+  visibility?: string
+  open_mode?: string
+  folder_path?: string[]
+  sort_order?: number
+}
