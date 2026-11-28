@@ -164,25 +164,33 @@ def docker_checks():
     for c in containers["containers"]:
         assert len(c["id"]) == 64 and c["image"] and isinstance(c["ports"], list) and isinstance(c["labels"], dict), c
 
-    docker_ignore("rm", "-f", "p54-restarting")
-    docker("run", "-d", "--name", "p54-restarting", "--restart=always", "--entrypoint", "false", "alpine:3.20")
+    # 用可控的 unhealthy 容器构造 error：容器保持 running，健康检查连续失败后进入 unhealthy。
+    # 相比 restart=always 的短暂 restarting，该状态可稳定轮询，避免抓到 running 的瞬时窗口。
+    docker_ignore("rm", "-f", "p54-unhealthy")
+    docker("run", "-d", "--name", "p54-unhealthy",
+           "--health-cmd", "exit 1",
+           "--health-interval", "1s",
+           "--health-timeout", "1s",
+           "--health-retries", "1",
+           "--health-start-period", "1s",
+           "--entrypoint", "sleep", "alpine:3.20", "300")
     error = None
-    for _ in range(20):
+    for _ in range(30):
         status, containers = call("GET", "/api/admin/docker/containers")
         assert status == 200, (status, containers)
         for c in containers["containers"]:
-            if c["name"] == "p54-restarting" and c["status"] == "error":
+            if c["name"] == "p54-unhealthy" and c["status"] == "error":
                 error = c
                 break
         if error:
             break
         time.sleep(1)
-    assert error, "真实 restarting 容器未映射为 error"
+    assert error, "真实 unhealthy 容器未映射为 error"
 
     status, links = call("GET", "/api/admin/docker/bookmark-links")
     status_run = next(c["status"] for c in links["containers"] if c["name"] == "p52-running")
     status_stop = next(c["status"] for c in links["containers"] if c["name"] == "p52-stopped")
-    status_err = next(c["status"] for c in links["containers"] if c["name"] == "p54-restarting")
+    status_err = next(c["status"] for c in links["containers"] if c["name"] == "p54-unhealthy")
     assert (status_run, status_stop, status_err) == ("running", "stopped", "error"), (status_run, status_stop, status_err)
     assert set(b["name"] for b in next(c for c in links["containers"] if c["name"] == "p52-running")["bookmarks"]) == {
         "P5.3 运行关联", "P5.3 共享关联"
@@ -195,7 +203,7 @@ def docker_checks():
     dump("p5-docker-four-states-real.json", {
         "running": "p52-running",
         "stopped": "p52-stopped",
-        "error": "p54-restarting",
+        "error": "p54-unhealthy",
         "unknown": "仅单元测试覆盖，未在真实 Docker 中构造",
         "counts": containers["counts"],
         "multi_bookmark_container": "p52-running",
@@ -280,7 +288,7 @@ def final():
     assert status == 200, status
     status, public = call("GET", "/api/bookmarks")
     assert all(b["name"] != "P5.4 回归书签" for b in public["items"])
-    docker_ignore("rm", "-f", "p54-restarting")
+    docker_ignore("rm", "-f", "p54-unhealthy")
 
     dump("p5.4-same-name-final.json", {
         "old_id": p53["stop_id"],
