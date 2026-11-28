@@ -1,4 +1,5 @@
 import type { Bookmark, CardSize, ResolvedTheme, ThemeMode } from './types'
+import type { BookmarkAddressMode } from './network'
 
 export const themeOrder: ThemeMode[] = ['auto', 'light', 'dark']
 
@@ -31,12 +32,31 @@ export function isHTTPURL(raw: string): boolean {
   }
 }
 
-export function bookmarkHref(bookmark: Bookmark): string {
+/** P4.4 前的默认地址规则：合法 WAN 优先，再回退合法 LAN。 */
+function defaultBookmarkHref(bookmark: Bookmark): string {
   const wan = bookmark.wan_url.trim()
   if (isHTTPURL(wan)) return wan
   const lan = bookmark.lan_url.trim()
   if (isHTTPURL(lan)) return lan
   return ''
+}
+
+/**
+ * 按当前有效网络模式选择书签地址。
+ * - lan/wan：优先使用对应地址；该地址缺失或非法时沿用原有默认规则。
+ * - default：UNKNOWN、判断中、尚无结果或无对应地址时，完全沿用原有默认规则。
+ * 不编造、不拼接地址，也不因为地址缺失改变书签的可见性。
+ */
+export function bookmarkHref(bookmark: Bookmark, mode: BookmarkAddressMode = 'default'): string {
+  if (mode === 'lan') {
+    const lan = bookmark.lan_url.trim()
+    return isHTTPURL(lan) ? lan : defaultBookmarkHref(bookmark)
+  }
+  if (mode === 'wan') {
+    const wan = bookmark.wan_url.trim()
+    return isHTTPURL(wan) ? wan : defaultBookmarkHref(bookmark)
+  }
+  return defaultBookmarkHref(bookmark)
 }
 
 export function bookmarkTarget(bookmark: Bookmark): '_self' | '_blank' {

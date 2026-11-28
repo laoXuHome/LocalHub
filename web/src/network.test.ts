@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bookmarkAddressHint,
+  bookmarkAddressMode,
+  bookmarkAddressShortLabel,
   effectiveNetworkMode,
   isNetworkMode,
   networkEntryState,
@@ -60,6 +63,28 @@ describe('network mode preference', () => {
     expect(effectiveNetworkMode('wan', 'lan')).toBe('wan')
     expect(effectiveNetworkMode('auto', 'wan')).toBe('wan')
     expect(effectiveNetworkMode('auto', 'auto')).toBe('auto')
+  })
+
+  it('maps bookmark address selection without treating UNKNOWN as LAN/WAN', () => {
+    expect(bookmarkAddressMode('lan', 'wan', false)).toBe('lan')
+    expect(bookmarkAddressMode('wan', 'lan', false)).toBe('wan')
+    expect(bookmarkAddressMode('lan', 'lan', true)).toBe('lan')
+    expect(bookmarkAddressMode('wan', 'wan', true)).toBe('wan')
+    expect(bookmarkAddressMode('auto', 'lan', false)).toBe('lan')
+    expect(bookmarkAddressMode('auto', 'wan', false)).toBe('wan')
+    expect(bookmarkAddressMode('auto', 'unknown', false)).toBe('default')
+    expect(bookmarkAddressMode('auto', null, false)).toBe('default')
+    expect(bookmarkAddressMode('auto', 'lan', true)).toBe('default')
+    expect(bookmarkAddressMode('auto', 'wan', true)).toBe('default')
+  })
+
+  it('describes the effective bookmark address mode', () => {
+    expect(bookmarkAddressShortLabel('lan')).toBe('LAN 地址')
+    expect(bookmarkAddressShortLabel('wan')).toBe('WAN 地址')
+    expect(bookmarkAddressShortLabel('default')).toBe('默认地址')
+    expect(bookmarkAddressHint('lan')).toContain('LAN 地址')
+    expect(bookmarkAddressHint('wan')).toContain('WAN 地址')
+    expect(bookmarkAddressHint('default')).toContain('默认地址')
   })
 
   it('labels the three modes', () => {

@@ -16,6 +16,8 @@ import type { AuthStatus, AutoNetworkStatus, Bookmark, BookmarkInput, CardSize, 
 import { applyTheme, persistTheme, readTheme, watchSystemTheme } from './theme'
 import {
   autoStatusText,
+  bookmarkAddressMode,
+  bookmarkAddressShortLabel,
   isNetworkMode,
   networkEntryState,
   networkModeLabel,
@@ -117,6 +119,7 @@ export default function App() {
   const autoProbing = auto.phase === 'probing'
   const autoStatus: AutoNetworkStatus | null = auto.result?.status ?? null
   const networkEntry = networkEntryState(networkMode, autoStatus, autoProbing)
+  const bookmarkAddress = bookmarkAddressMode(networkMode, autoStatus, autoProbing)
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('localhub.sidebar') === 'collapsed'
@@ -679,7 +682,7 @@ export default function App() {
               type="button"
               className="mobile-network-entry"
               onClick={openNetwork}
-              aria-label={`网络模式 ${networkModeLabel(networkMode)}，当前 ${networkEntry.label}，打开网络设置`}
+              aria-label={`网络模式 ${networkModeLabel(networkMode)}，当前 ${networkEntry.label}，书签使用${bookmarkAddressShortLabel(bookmarkAddress)}，打开网络设置`}
             >
               <NetworkIcon size={15} />
               <span className={`network-state-dot network-state-dot--${networkEntry.tone}`} aria-hidden="true" />
@@ -706,7 +709,7 @@ export default function App() {
                   type="button"
                   className="network-entry"
                   onClick={openNetwork}
-                  aria-label={`网络模式 ${networkModeLabel(networkMode)}，当前 ${networkEntry.label}，打开网络设置`}
+                  aria-label={`网络模式 ${networkModeLabel(networkMode)}，当前 ${networkEntry.label}，书签使用${bookmarkAddressShortLabel(bookmarkAddress)}，打开网络设置`}
                 >
                   <NetworkIcon size={16} />
                   <span className="network-entry-label">网络</span>
@@ -813,6 +816,7 @@ export default function App() {
                     bookmark={bookmark}
                     index={index}
                     size={size}
+                    addressMode={bookmarkAddress}
                     key={bookmark.key}
                     editing={editing && !preview}
                     dragOver={dragOverKey === bookmark.key}
@@ -862,7 +866,7 @@ export default function App() {
           onClose={closeNetwork}
         />
       )}
-      {searchOpen && <SpotlightSearch bookmarks={bookmarks} onClose={closeSearch} />}
+      {searchOpen && <SpotlightSearch bookmarks={bookmarks} addressMode={bookmarkAddress} onClose={closeSearch} />}
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
       {accountOpen && <AccountSheet auth={auth} onClose={closeAccount} onRefresh={refresh} />}

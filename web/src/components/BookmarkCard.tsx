@@ -1,5 +1,6 @@
 import type { Bookmark, CardSize } from '../types'
 import { iconKind, iconSource, iconText, initialLetter, bookmarkHref, bookmarkTarget, hueFor, cardSizeFor } from '../lib'
+import type { BookmarkAddressMode } from '../network'
 import { useState } from 'react'
 import type { DraftBookmark } from '../editor'
 
@@ -7,6 +8,7 @@ type Props = {
   bookmark: Bookmark | DraftBookmark
   index?: number
   size?: CardSize
+  addressMode?: BookmarkAddressMode
   editing?: boolean
   dragOver?: boolean
   onEdit?: () => void
@@ -25,6 +27,7 @@ export function BookmarkCard({
   bookmark,
   index = 0,
   size,
+  addressMode = 'default',
   editing = false,
   dragOver = false,
   onEdit,
@@ -33,7 +36,7 @@ export function BookmarkCard({
   dataKey,
 }: Props) {
   const [imageFailed, setImageFailed] = useState(false)
-  const href = bookmarkHref(bookmark)
+  const href = bookmarkHref(bookmark, addressMode)
   const previewSrc = 'iconPreview' in bookmark ? bookmark.iconPreview : undefined
   const kind = imageFailed ? 'fallback' : previewSrc ? 'image' : iconKind(bookmark)
   const cardSize = size ?? cardSizeFor(index)

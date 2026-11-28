@@ -46,7 +46,7 @@ export function persistNetworkMode(mode: NetworkMode, storage?: ModeStorage | nu
 
 /**
  * 手动 LAN/WAN 优先于自动判断；只有偏好为 AUTO 时才采用自动检测结果。
- * P4.1 不执行自动检测，detected 固定为 auto；该语义留给后续探测引擎。
+ * 书签地址选择使用 bookmarkAddressMode，把 UNKNOWN/判断中保留为默认回退。
  */
 export function effectiveNetworkMode(preference: NetworkMode, detected: NetworkMode = 'auto'): NetworkMode {
   if (preference !== 'auto') return preference
@@ -64,6 +64,9 @@ export function networkModeDescription(mode: NetworkMode): string {
 }
 
 export type NetworkTone = 'lan' | 'wan' | 'unknown' | 'probing'
+
+/** 书签地址选择：决定用 LAN、WAN，还是沿用原有的默认地址规则。 */
+export type BookmarkAddressMode = 'lan' | 'wan' | 'default'
 
 export type NetworkEntryState = {
   /** 顶部入口要显示的状态文字。 */
@@ -93,6 +96,34 @@ export function networkEntryState(
   if (detected === 'wan') return { label: 'WAN', tone: 'wan', preference, detected }
   if (detected === 'unknown') return { label: 'UNKNOWN', tone: 'unknown', preference, detected }
   return { label: 'AUTO', tone: 'unknown', preference, detected: null }
+}
+
+/**
+ * 书签地址选择规则：手动 LAN/WAN 永远优先；只有 AUTO 才采用已完成的自动结果。
+ * AUTO 判断中、UNKNOWN 或尚无结果时返回 default，沿用 P4.4 前的默认地址规则。
+ * 自动判断中的旧结果不参与选择，避免把过期结果当成当前有效状态。
+ */
+export function bookmarkAddressMode(
+  preference: NetworkMode,
+  detected: AutoNetworkStatus | null,
+  probing = false,
+): BookmarkAddressMode {
+  if (preference === 'lan' || preference === 'wan') return preference
+  if (probing) return 'default'
+  if (detected === 'lan' || detected === 'wan') return detected
+  return 'default'
+}
+
+export function bookmarkAddressShortLabel(mode: BookmarkAddressMode): string {
+  if (mode === 'lan') return 'LAN 地址'
+  if (mode === 'wan') return 'WAN 地址'
+  return '默认地址'
+}
+
+export function bookmarkAddressHint(mode: BookmarkAddressMode): string {
+  if (mode === 'lan') return '书签优先使用 LAN 地址；LAN 地址缺失时沿用原有默认地址。'
+  if (mode === 'wan') return '书签优先使用 WAN 地址；WAN 地址缺失时沿用原有默认地址。'
+  return '网络状态未确定，书签沿用原有默认地址规则。'
 }
 
 export function autoStatusText(status: AutoNetworkStatus): string {

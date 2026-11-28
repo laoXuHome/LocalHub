@@ -3385,6 +3385,40 @@ img {
   color: #9ca3af;
 }
 
+.network-address-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-left: 3px solid #9ca3af;
+  border-radius: 11px;
+  background: var(--surface);
+}
+
+.network-address-hint strong {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.network-address-hint span {
+  color: var(--muted);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.network-address-hint[data-mode='lan'] {
+  border-left-color: #16a34a;
+  background: rgba(22, 163, 74, 0.07);
+}
+
+.network-address-hint[data-mode='wan'] {
+  border-left-color: #2563eb;
+  background: rgba(37, 99, 235, 0.07);
+}
+
 .network-auto-card {
   display: flex;
   flex-direction: column;

@@ -1,11 +1,13 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import type { Bookmark } from '../types'
 import { bookmarkHref, bookmarkTarget, hueFor, iconKind, iconSource, iconText, initialLetter } from '../lib'
+import type { BookmarkAddressMode } from '../network'
 import { searchBookmarks } from '../search'
 import { BookmarkIcon, CloseIcon, SearchIcon } from './Icons'
 
 type Props = {
   bookmarks: Bookmark[]
+  addressMode: BookmarkAddressMode
   onClose: () => void
 }
 
@@ -27,8 +29,8 @@ function ResultIcon({ bookmark }: { bookmark: Bookmark }) {
   )
 }
 
-function openBookmark(bookmark: Bookmark, onClose: () => void) {
-  const href = bookmarkHref(bookmark)
+function openBookmark(bookmark: Bookmark, addressMode: BookmarkAddressMode, onClose: () => void) {
+  const href = bookmarkHref(bookmark, addressMode)
   if (!href) return
   const target = bookmarkTarget(bookmark)
   onClose()
@@ -39,7 +41,7 @@ function openBookmark(bookmark: Bookmark, onClose: () => void) {
   }
 }
 
-export function SpotlightSearch({ bookmarks, onClose }: Props) {
+export function SpotlightSearch({ bookmarks, addressMode, onClose }: Props) {
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -89,7 +91,7 @@ export function SpotlightSearch({ bookmarks, onClose }: Props) {
       if (results.length > 0) setActiveIndex((index) => Math.max(index - 1, 0))
     } else if (event.key === 'Enter') {
       event.preventDefault()
-      if (activeResult) openBookmark(activeResult, onClose)
+      if (activeResult) openBookmark(activeResult, addressMode, onClose)
     }
   }
 
@@ -148,7 +150,7 @@ export function SpotlightSearch({ bookmarks, onClose }: Props) {
               </div>
               <div className="spotlight-results" role="listbox" aria-label="搜索结果">
                 {results.map((bookmark, index) => {
-                  const href = bookmarkHref(bookmark)
+                  const href = bookmarkHref(bookmark, addressMode)
                   const active = index === activeIndex
                   const style = { '--card-hue': String(hueFor(bookmark.id)) } as React.CSSProperties
                   return (
@@ -163,7 +165,7 @@ export function SpotlightSearch({ bookmarks, onClose }: Props) {
                       href={href || undefined}
                       onClick={(event) => {
                         event.preventDefault()
-                        openBookmark(bookmark, onClose)
+                        openBookmark(bookmark, addressMode, onClose)
                       }}
                       onMouseEnter={() => setActiveIndex(index)}
                     >

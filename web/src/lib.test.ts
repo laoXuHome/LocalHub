@@ -86,6 +86,29 @@ describe('URL helpers', () => {
     expect(bookmarkHref(bookmark({ wan_url: '  https://example.com/a  ' }))).toBe('https://example.com/a')
   })
 
+  it('手动 LAN 选择 LAN 地址，手动 WAN 选择 WAN 地址', () => {
+    expect(bookmarkHref(bookmark(), 'lan')).toBe('http://192.168.1.10:8080')
+    expect(bookmarkHref(bookmark(), 'wan')).toBe('https://example.com')
+  })
+
+  it('默认模式沿用原有 WAN 优先、LAN 回退规则', () => {
+    expect(bookmarkHref(bookmark(), 'default')).toBe('https://example.com')
+    expect(bookmarkHref(bookmark({ wan_url: '', lan_url: 'http://10.0.0.2:8080' }), 'default')).toBe('http://10.0.0.2:8080')
+  })
+
+  it('对应地址缺失或非法时沿用原有默认规则，不编造地址', () => {
+    expect(bookmarkHref(bookmark({ lan_url: '' }), 'lan')).toBe('https://example.com')
+    expect(bookmarkHref(bookmark({ lan_url: 'not-a-url' }), 'lan')).toBe('https://example.com')
+    expect(bookmarkHref(bookmark({ wan_url: 'ftp://example.com' }), 'wan')).toBe('http://192.168.1.10:8080')
+    expect(bookmarkHref(bookmark({ wan_url: '', lan_url: '  ' }), 'lan')).toBe('')
+    expect(bookmarkHref(bookmark({ wan_url: '', lan_url: '' }), 'wan')).toBe('')
+  })
+
+  it('去除所选地址两端空白且不拼接路径', () => {
+    expect(bookmarkHref(bookmark({ lan_url: '  http://10.0.0.2:8080/a  ' }), 'lan')).toBe('http://10.0.0.2:8080/a')
+    expect(bookmarkHref(bookmark({ wan_url: '  https://example.com/a  ' }), 'wan')).toBe('https://example.com/a')
+  })
+
   it('self 与 current_tab 在当前页打开，其余新页打开', () => {
     expect(bookmarkTarget(bookmark({ open_mode: 'self' }))).toBe('_self')
     expect(bookmarkTarget(bookmark({ open_mode: 'current_tab' }))).toBe('_self')

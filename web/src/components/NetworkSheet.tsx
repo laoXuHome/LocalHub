@@ -9,7 +9,7 @@ import {
   triggerNetworkProbe,
 } from '../api'
 import { formatProbeCheckedAt, formatProbeLatency, probeHTTPLabel, probeStateLabel, probeStateTone } from '../probe'
-import { autoReasonText, autoStatusText, networkEntryState, networkModeDescription, networkModeLabel, networkModes } from '../network'
+import { autoReasonText, autoStatusText, bookmarkAddressHint, bookmarkAddressMode, bookmarkAddressShortLabel, networkEntryState, networkModeDescription, networkModeLabel, networkModes } from '../network'
 import type {
   NetworkConfig,
   NetworkMode,
@@ -155,6 +155,7 @@ function ProbeRow({ result, isAdmin }: { result: NetworkProbeResult; isAdmin: bo
 
 export function NetworkSheet({ mode, isAdmin, autoPhase, autoResult, onRecheck, onModeChange, onClose }: Props) {
   const autoView = networkEntryState(mode, autoResult?.status ?? null, autoPhase === 'probing')
+  const bookmarkAddress = bookmarkAddressMode(mode, autoResult?.status ?? null, autoPhase === 'probing')
   const [tab, setTab] = useState<'mode' | 'results' | 'targets'>('mode')
   const [config, setConfig] = useState<NetworkConfig | null>(null)
   const [loading, setLoading] = useState(false)
@@ -432,6 +433,10 @@ export function NetworkSheet({ mode, isAdmin, autoPhase, autoResult, onRecheck, 
                   <span>{networkModeDescription(item)}</span>
                 </button>
               ))}
+            </div>
+            <div className="network-address-hint" data-mode={bookmarkAddress} role="status">
+              <strong>书签打开：{bookmarkAddressShortLabel(bookmarkAddress)}</strong>
+              <span>{bookmarkAddressHint(bookmarkAddress)}</span>
             </div>
             <section className="network-auto-card" aria-label="自动网络判断">
               <div className="network-auto-head">
