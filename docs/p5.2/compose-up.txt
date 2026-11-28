@@ -1,9 +1,9 @@
  Image wollomatic/socket-proxy:1.14.0 Pulling 
  b806c5f80dc2 Pulling fs layer 0B
- 86c28c87f47f Download complete 0B
  44136fa355b3 Already exists 0B
+ b806c5f80dc2 Downloading 6.02MB
+ 86c28c87f47f Download complete 0B
  b806c5f80dc2 Download complete 0B
- b806c5f80dc2 Extracting 1B
  b806c5f80dc2 Pull complete 0B
  Image wollomatic/socket-proxy:1.14.0 Pulled 
  Network localhub_default Creating 
@@ -28,5 +28,5 @@
  Container localhub-docker-socket-proxy Removed 
  Network localhub_default Removing 
  Network localhub_docker-proxy Removing 
- Network localhub_default Removed 
  Network localhub_docker-proxy Removed 
+ Network localhub_default Removed 

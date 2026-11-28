@@ -1,14 +1,14 @@
 [
     {
-        "Id": "sha256:d5309e1a718d9429725d5c9df6837cfed7de7576310f4e1a3ad1d35557876f8f",
+        "Id": "sha256:3df2552255c36f8341ea49cc5ff7365061dbfe47da54d4aad3dbc7daa548ac17",
         "RepoTags": [
             "localhub:amd64"
         ],
         "RepoDigests": [
-            "localhub@sha256:d5309e1a718d9429725d5c9df6837cfed7de7576310f4e1a3ad1d35557876f8f"
+            "localhub@sha256:3df2552255c36f8341ea49cc5ff7365061dbfe47da54d4aad3dbc7daa548ac17"
         ],
         "Comment": "buildkit.dockerfile.v0",
-        "Created": "2026-11-28T09:31:19.811950858Z",
+        "Created": "2026-11-28T09:49:36.25009583Z",
         "Config": {
             "User": "0",
             "ExposedPorts": {
@@ -29,9 +29,9 @@
             ],
             "WorkingDir": "/",
             "Labels": {
-                "org.opencontainers.image.created": "2026-11-28T09:30:47Z",
+                "org.opencontainers.image.created": "2026-11-28T09:49:06Z",
                 "org.opencontainers.image.description": "本地优先的 NAS 书签与服务面板（P0 基础设施）",
-                "org.opencontainers.image.revision": "4e5f4e8d2646be4c1460c2547a9b5038ebe59619",
+                "org.opencontainers.image.revision": "31824fa79926e4a230dc06ede7460c0cd849af59",
                 "org.opencontainers.image.source": "https://github.com/laoXuHome/LocalHub",
                 "org.opencontainers.image.title": "LocalHub",
                 "org.opencontainers.image.version": "v0.1.0-p0"
@@ -50,7 +50,7 @@
         },
         "Architecture": "amd64",
         "Os": "linux",
-        "Size": 5631882,
+        "Size": 5631873,
         "RootFS": {
             "Type": "layers",
             "Layers": [
@@ -66,33 +66,33 @@
                 "sha256:ad51d0769d16ba578106a177987dfe3d2e02c1668c852b795b2f6b024068242a",
                 "sha256:6e7fbcf090d09b73a4aa85f9dce690d0ace73877c150b7c56955487b6e7a822a",
                 "sha256:5904c32f457c96a16c8c68f5ccdf518c8138cd9e5971de9ce6d564fc481af222",
-                "sha256:e2372b09f42b552f7b8b553aa7d6fb9cd72fb40461db645d4e4d6db40fd24f0d"
+                "sha256:7e973b5cd8cc7d7faa6ecaf96910af2154ec583e043b065c8b1917ae19f70e42"
             ]
         },
         "Metadata": {
-            "LastTagTime": "2026-11-28T09:31:20.343044233Z"
+            "LastTagTime": "2026-11-28T09:49:36.923735595Z"
         },
         "Descriptor": {
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
-            "digest": "sha256:d5309e1a718d9429725d5c9df6837cfed7de7576310f4e1a3ad1d35557876f8f",
+            "digest": "sha256:3df2552255c36f8341ea49cc5ff7365061dbfe47da54d4aad3dbc7daa548ac17",
             "size": 2747,
             "annotations": {
                 "io.containerd.image.name": "docker.io/library/localhub:amd64",
-                "org.opencontainers.image.created": "2026-11-28T09:31:20Z",
+                "org.opencontainers.image.created": "2026-11-28T09:49:36Z",
                 "org.opencontainers.image.ref.name": "amd64"
             }
         }
     },
     {
-        "Id": "sha256:95493301915918dd4aae846599e58737aa8bd5623470d41542275a0805678a59",
+        "Id": "sha256:e5336790330450c0fd4e282909509d5f1a078e4db0966863694ef27b472ff3bd",
         "RepoTags": [
             "localhub:arm64"
         ],
         "RepoDigests": [
-            "localhub@sha256:95493301915918dd4aae846599e58737aa8bd5623470d41542275a0805678a59"
+            "localhub@sha256:e5336790330450c0fd4e282909509d5f1a078e4db0966863694ef27b472ff3bd"
         ],
         "Comment": "buildkit.dockerfile.v0",
-        "Created": "2026-11-28T09:31:42.846020769Z",
+        "Created": "2026-11-28T09:49:56.484994423Z",
         "Config": {
             "User": "0",
             "ExposedPorts": {
@@ -113,9 +113,9 @@
             ],
             "WorkingDir": "/",
             "Labels": {
-                "org.opencontainers.image.created": "2026-11-28T09:31:20Z",
+                "org.opencontainers.image.created": "2026-11-28T09:49:37Z",
                 "org.opencontainers.image.description": "本地优先的 NAS 书签与服务面板（P0 基础设施）",
-                "org.opencontainers.image.revision": "4e5f4e8d2646be4c1460c2547a9b5038ebe59619",
+                "org.opencontainers.image.revision": "31824fa79926e4a230dc06ede7460c0cd849af59",
                 "org.opencontainers.image.source": "https://github.com/laoXuHome/LocalHub",
                 "org.opencontainers.image.title": "LocalHub",
                 "org.opencontainers.image.version": "v0.1.0-p0"
@@ -134,7 +134,7 @@
         },
         "Architecture": "arm64",
         "Os": "linux",
-        "Size": 5262383,
+        "Size": 5262197,
         "RootFS": {
             "Type": "layers",
             "Layers": [
@@ -150,19 +150,19 @@
                 "sha256:ad51d0769d16ba578106a177987dfe3d2e02c1668c852b795b2f6b024068242a",
                 "sha256:6e7fbcf090d09b73a4aa85f9dce690d0ace73877c150b7c56955487b6e7a822a",
                 "sha256:5904c32f457c96a16c8c68f5ccdf518c8138cd9e5971de9ce6d564fc481af222",
-                "sha256:a666aab12a312b92c1189ad7babf70e40299024b2766d9c47d9a9b39f954566d"
+                "sha256:251440fefebec4804d7c8fd35373bfe4c16dd8ec4d09fee5e945b43c767365b9"
             ]
         },
         "Metadata": {
-            "LastTagTime": "2026-11-28T09:31:43.289447852Z"
+            "LastTagTime": "2026-11-28T09:49:56.903144429Z"
         },
         "Descriptor": {
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
-            "digest": "sha256:95493301915918dd4aae846599e58737aa8bd5623470d41542275a0805678a59",
+            "digest": "sha256:e5336790330450c0fd4e282909509d5f1a078e4db0966863694ef27b472ff3bd",
             "size": 2747,
             "annotations": {
                 "io.containerd.image.name": "docker.io/library/localhub:arm64",
-                "org.opencontainers.image.created": "2026-11-28T09:31:43Z",
+                "org.opencontainers.image.created": "2026-11-28T09:49:56Z",
                 "org.opencontainers.image.ref.name": "arm64"
             }
         }
