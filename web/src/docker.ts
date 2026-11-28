@@ -1,4 +1,4 @@
-import type { DockerConnectionStatus } from './types'
+import type { DockerConnectionStatus, DockerContainerStatus } from './types'
 
 export type DockerTone = 'connected' | 'not_connected' | 'fault' | 'unknown'
 
@@ -62,4 +62,51 @@ export function formatDockerCheckedAt(value?: string): string {
     minute: '2-digit',
     second: '2-digit',
   })
+}
+
+export function containerStatusTone(status: DockerContainerStatus): DockerTone {
+  switch (status) {
+    case 'running':
+      return 'connected'
+    case 'stopped':
+      return 'not_connected'
+    case 'error':
+      return 'fault'
+    default:
+      return 'unknown'
+  }
+}
+
+export function containerStatusLabel(status: DockerContainerStatus): string {
+  switch (status) {
+    case 'running':
+      return '运行中'
+    case 'stopped':
+      return '已停止'
+    case 'error':
+      return '异常'
+    default:
+      return '未知'
+  }
+}
+
+function formatDockerDate(value?: string): string {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleString('zh-CN', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+export function formatDockerCreatedAt(value?: string): string {
+  const formatted = formatDockerDate(value)
+  return formatted === '—' ? '创建时间未知' : `创建于 ${formatted}`
+}
+
+export function formatDockerStartedAt(value?: string): string {
+  return formatDockerDate(value)
 }

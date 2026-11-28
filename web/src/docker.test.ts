@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { dockerStatusDescription, dockerStatusLabel, dockerStatusTone, formatDockerCheckedAt } from './docker'
+import {
+  containerStatusLabel,
+  containerStatusTone,
+  dockerStatusDescription,
+  dockerStatusLabel,
+  dockerStatusTone,
+  formatDockerCheckedAt,
+  formatDockerCreatedAt,
+  formatDockerStartedAt,
+} from './docker'
 
 describe('P5.1 Docker 状态映射', () => {
   it('五种业务状态和未知状态映射到固定色调', () => {
@@ -24,5 +33,24 @@ describe('P5.1 Docker 状态映射', () => {
   it('检测时间非法时显示占位符', () => {
     expect(formatDockerCheckedAt('')).toBe('—')
     expect(formatDockerCheckedAt('not-a-date')).toBe('—')
+  })
+})
+
+describe('P5.2 容器状态映射', () => {
+  it('四种容器状态映射到固定色调', () => {
+    expect(containerStatusTone('running')).toBe('connected')
+    expect(containerStatusTone('stopped')).toBe('not_connected')
+    expect(containerStatusTone('error')).toBe('fault')
+    expect(containerStatusTone('unknown')).toBe('unknown')
+  })
+
+  it('容器状态文案与时间占位符', () => {
+    expect(containerStatusLabel('running')).toBe('运行中')
+    expect(containerStatusLabel('stopped')).toBe('已停止')
+    expect(containerStatusLabel('error')).toBe('异常')
+    expect(containerStatusLabel('unknown')).toBe('未知')
+    expect(formatDockerCreatedAt('')).toBe('创建时间未知')
+    expect(formatDockerCreatedAt('bad')).toBe('创建时间未知')
+    expect(formatDockerStartedAt('bad')).toBe('—')
   })
 })

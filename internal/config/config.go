@@ -46,6 +46,8 @@ type Config struct {
 	// P5.1 Docker 只读连接。DockerAPIURL 为空表示未配置，不应阻止启动。
 	DockerAPIURL  string
 	DockerTimeout time.Duration
+	// DockerRefreshInterval 是前端容器列表自动刷新的默认间隔。
+	DockerRefreshInterval time.Duration
 }
 
 // Load 从进程环境读取配置。
@@ -69,12 +71,13 @@ func LoadFrom(env []string) (*Config, error) {
 	}
 
 	c := &Config{
-		HTTPAddr:           get("LOCALHUB_HTTP_ADDR", "0.0.0.0"),
-		DataDir:            get("LOCALHUB_DATA_DIR", "/data"),
-		LogLevel:           strings.ToLower(get("LOCALHUB_LOG_LEVEL", "info")),
-		TZ:                 get("TZ", "Asia/Shanghai"),
-		WriteCheckInterval: 60 * time.Second,
-		DockerTimeout:      3 * time.Second,
+		HTTPAddr:              get("LOCALHUB_HTTP_ADDR", "0.0.0.0"),
+		DataDir:               get("LOCALHUB_DATA_DIR", "/data"),
+		LogLevel:              strings.ToLower(get("LOCALHUB_LOG_LEVEL", "info")),
+		TZ:                    get("TZ", "Asia/Shanghai"),
+		WriteCheckInterval:    60 * time.Second,
+		DockerTimeout:         3 * time.Second,
+		DockerRefreshInterval: 30 * time.Second,
 	}
 
 	var problems []string
@@ -236,6 +239,14 @@ func LoadFrom(env []string) (*Config, error) {
 			bad("LOCALHUB_DOCKER_TIMEOUT=%q 非法，需为 500ms-30s 的时长（如 3s）", v)
 		} else {
 			c.DockerTimeout = d
+		}
+	}
+	if v, ok := m["LOCALHUB_DOCKER_REFRESH_INTERVAL"]; ok && strings.TrimSpace(v) != "" {
+		d, err := time.ParseDuration(strings.TrimSpace(v))
+		if err != nil || d < 10*time.Second || d > 300*time.Second {
+			bad("LOCALHUB_DOCKER_REFRESH_INTERVAL=%q 非法，需为 10s-300s 的时长（如 30s）", v)
+		} else {
+			c.DockerRefreshInterval = d
 		}
 	}
 

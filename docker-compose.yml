@@ -22,6 +22,7 @@ services:
       # P5.1 Docker 只读连接：只指向 Socket Proxy，绝不挂载 Docker Socket
       - LOCALHUB_DOCKER_API_URL=${LOCALHUB_DOCKER_API_URL:-http://docker-socket-proxy:2375}
       - LOCALHUB_DOCKER_TIMEOUT=${LOCALHUB_DOCKER_TIMEOUT:-3s}
+      - LOCALHUB_DOCKER_REFRESH_INTERVAL=${LOCALHUB_DOCKER_REFRESH_INTERVAL:-30s}
     volumes:
       # 冒号左侧由部署者自定义，可与 compose 文件所在目录不同
       - ${LOCALHUB_DATA_DIR:-./localhub-data}:/data

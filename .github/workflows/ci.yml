@@ -172,6 +172,28 @@ jobs:
             echo "Docker 状态响应泄露了连接地址" >&2
             exit 1
           fi
+          # P5.2 真实容器发现：运行中 + 已停止各一个（宿主机 CLI 创建，不经过 LocalHub）
+          docker rm -f p52-running p52-stopped >/dev/null 2>&1 || true
+          docker run -d --name p52-running --entrypoint sleep alpine:3.20 300 >/dev/null
+          docker create --name p52-stopped --entrypoint true alpine:3.20 >/dev/null
+          curl -s --max-time 8 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/docker/containers > p52-containers.json
+          python3 - <<'PY2' | tee -a ci-artifacts/auth-smoke.txt
+          import json
+          d=json.load(open('p52-containers.json'))
+          assert d["status"]=="connected", d
+          assert d["read_only"] is True
+          items={c["name"]:c for c in d["containers"]}
+          assert "p52-running" in items and items["p52-running"]["status"]=="running", items.keys()
+          assert "p52-stopped" in items and items["p52-stopped"]["status"]=="stopped", items.keys()
+          assert items["p52-running"]["started_at"], items["p52-running"]
+          assert len(items["p52-running"]["id"]) > 12
+          assert isinstance(items["p52-running"]["labels"], dict)
+          assert isinstance(items["p52-running"]["ports"], list)
+          assert d["counts"]["total"] == len(d["containers"])
+          assert d["counts"]["running"] >= 1 and d["counts"]["stopped"] >= 1
+          print("P5.2 containers:", d["counts"], "names:", sorted(items.keys()))
+          PY2
+          docker inspect p52-running p52-stopped > ci-artifacts/p52-docker-inspect.json
           logout=$(curl -s --max-time 3 -b compose-cookies.txt -X POST -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/auth/logout)
           echo "logout HTTP $logout" | tee -a ci-artifacts/auth-smoke.txt
           after=$(curl -s --max-time 3 -b compose-cookies.txt -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/admin/whoami)
@@ -312,6 +334,9 @@ jobs:
           outage_status=$(curl -s --max-time 8 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/docker/status)
           echo "status=$outage_status" | tee -a ci-artifacts/p51-outage.log
           echo "$outage_status" | grep -q '"status":"connection_failed"'
+          outage_containers=$(curl -s --max-time 8 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/docker/containers)
+          echo "containers=$outage_containers" | tee -a ci-artifacts/p51-outage.log
+          python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["status"]=="connection_failed" and d["containers"]==[] and d["counts"]["stopped"]==0, d' "$outage_containers"
           outage_health=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/health)
           outage_bookmarks=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/bookmarks)
           echo "health=$outage_health bookmarks=$outage_bookmarks" | tee -a ci-artifacts/p51-outage.log
@@ -326,7 +351,11 @@ jobs:
           done
           echo "recovered=$recovered" | tee -a ci-artifacts/p51-outage.log
           test "$recovered" = "1"
+          recovered_containers=$(curl -s --max-time 8 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/docker/containers)
+          echo "recovered_containers=$recovered_containers" | tee -a ci-artifacts/p51-outage.log
+          python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["status"]=="connected" and any(c["name"]=="p52-running" and c["status"]=="running" for c in d["containers"]), d' "$recovered_containers"
 
+          docker rm -f p52-running p52-stopped >/dev/null 2>&1 || true
           docker compose down 2>&1 | tee -a ci-artifacts/compose-up.txt
           test "$code" = "200"
 

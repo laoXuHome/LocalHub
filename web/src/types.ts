@@ -142,3 +142,37 @@ export type DockerStatusInfo = {
   message: string
   read_only: boolean
 }
+
+// P5.2 容器自动发现。Labels 仅作为普通数据保留，不参与 UI 执行。
+export type DockerContainerStatus = 'running' | 'stopped' | 'error' | 'unknown'
+
+export type DockerContainerInfo = {
+  id: string
+  name: string
+  image: string
+  status: DockerContainerStatus
+  created_at?: string
+  started_at?: string
+  ports: string[]
+  labels: Record<string, string>
+}
+
+export type DockerContainerCounts = {
+  total: number
+  running: number
+  stopped: number
+  error: number
+  unknown: number
+}
+
+export type DockerContainersInfo = {
+  status: DockerConnectionStatus
+  checked_at: string
+  message: string
+  read_only: boolean
+  refresh_interval_seconds: number
+  containers: DockerContainerInfo[]
+  counts: DockerContainerCounts
+  skipped?: number
+  truncated?: boolean
+}

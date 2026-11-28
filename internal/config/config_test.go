@@ -108,10 +108,14 @@ func TestDockerConfigDefaultsAndNormalization(t *testing.T) {
 	if c.DockerTimeout != 3*time.Second {
 		t.Fatalf("默认 Docker 超时应为 3s，得到 %v", c.DockerTimeout)
 	}
+	if c.DockerRefreshInterval != 30*time.Second {
+		t.Fatalf("默认 Docker 刷新间隔应为 30s，得到 %v", c.DockerRefreshInterval)
+	}
 
 	c, err = LoadFrom([]string{
 		"LOCALHUB_DOCKER_API_URL=tcp://docker-socket-proxy:2375",
 		"LOCALHUB_DOCKER_TIMEOUT=5s",
+		"LOCALHUB_DOCKER_REFRESH_INTERVAL=60s",
 	})
 	if err != nil {
 		t.Fatalf("合法的 Docker 配置不应报错：%v", err)
@@ -121,6 +125,9 @@ func TestDockerConfigDefaultsAndNormalization(t *testing.T) {
 	}
 	if c.DockerTimeout != 5*time.Second {
 		t.Fatalf("Docker 超时错误：%v", c.DockerTimeout)
+	}
+	if c.DockerRefreshInterval != 60*time.Second {
+		t.Fatalf("Docker 刷新间隔错误：%v", c.DockerRefreshInterval)
 	}
 }
 
@@ -132,6 +139,8 @@ func TestDockerConfigRejectsUnsafeValues(t *testing.T) {
 		{"带用户信息", "LOCALHUB_DOCKER_API_URL=http://user:pass@proxy:2375", "LOCALHUB_DOCKER_API_URL"},
 		{"超时过短", "LOCALHUB_DOCKER_TIMEOUT=100ms", "LOCALHUB_DOCKER_TIMEOUT"},
 		{"超时过长", "LOCALHUB_DOCKER_TIMEOUT=60s", "LOCALHUB_DOCKER_TIMEOUT"},
+		{"刷新过短", "LOCALHUB_DOCKER_REFRESH_INTERVAL=5s", "LOCALHUB_DOCKER_REFRESH_INTERVAL"},
+		{"刷新过长", "LOCALHUB_DOCKER_REFRESH_INTERVAL=10m", "LOCALHUB_DOCKER_REFRESH_INTERVAL"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

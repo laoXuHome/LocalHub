@@ -3,6 +3,7 @@ import type {
   Bookmark,
   BookmarkInput,
   BookmarksResponse,
+  DockerContainersInfo,
   DockerStatusInfo,
   LayoutResponse,
   NetworkConfig,
@@ -125,6 +126,10 @@ export function saveNetworkTargets(targets: NetworkTargetInput[]): Promise<Netwo
 
 export function loadDockerStatus(signal?: AbortSignal): Promise<DockerStatusInfo> {
   return getJSON<DockerStatusInfo>('/api/admin/docker/status', signal)
+}
+
+export function loadDockerContainers(signal?: AbortSignal): Promise<DockerContainersInfo> {
+  return getJSON<DockerContainersInfo>('/api/admin/docker/containers', signal)
 }
 
 export function loadNetworkStatus(signal?: AbortSignal): Promise<NetworkProbeStatus> {
