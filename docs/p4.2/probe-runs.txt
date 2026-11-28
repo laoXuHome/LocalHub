@@ -1,0 +1,68 @@
+# P4.2 真实 HTTP 探测证据
+日期：2026-11-28（Asia/Shanghai）
+服务：/tmp/localhub-p42-final，127.0.0.1:11030，data=/tmp/localhub-p42-data，schema_version=8
+测试目标为本地 HTTP 夹具（127.0.0.0/8），不是用户真实网络。
+
+## 1. 三个目标全部成功
+
+run_id: probe-b27dc5da16384240
+router         address=127.0.0.1  status=success  http=200  latency=5ms
+bypass_router  address=127.0.0.3  status=success  http=200  latency=5ms
+nas            address=127.0.0.4  status=success  http=200  latency=4ms
+
+原始响应：run-success.json
+
+## 2. 失败相互独立：HTTP 错误 / 超时 / 成功
+
+run_id: probe-f26e9bb336fba7f3
+router         address=127.0.0.7  status=timeout           latency=3003ms  reason=探测超时
+bypass_router  address=127.0.0.6  status=http_error        http=503       latency=4ms
+nas            address=127.0.0.1  status=success           http=200       latency=8ms
+
+在页面上另一次同配置手动探测显示 `1/3 个目标成功`，截图 admin-desktop-failures.png：
+router success 7ms；旁路由 HTTP 503 9ms；NAS 3009ms timeout。
+原始响应：duplicate-completed.json
+
+## 3. 连接失败与禁止跟随重定向
+
+run_id: probe-01b5f21e0392a9f8
+router         address=127.0.0.1  status=success            http=200  latency=2ms
+bypass_router  address=127.0.0.8  status=http_error          http=302  latency=3ms  reason=HTTP 状态码 302
+nas            address=127.0.0.5  status=connection_failed  http=0    latency=3ms  reason=HTTP 与 HTTPS 均连接失败
+
+127.0.0.8 夹具日志只有 `127.0.0.8:80 /`，从未出现重定向目标 `/final`，证明
+CheckRedirect=ErrUseLastResponse 生效，产品没有跟随 302。
+原始响应：run-redirect-connection-failed.json；夹具日志：fixture-request-log.txt
+
+## 4. 响应体上限与禁用目标不发请求
+
+run_id: probe-bd4d9c8ac22d83d9
+router         address=127.0.0.1   status=success      http=200  latency=3ms
+bypass_router  address=127.0.0.9   status=probe_error  http=200  latency=3ms  reason=响应体超过限制
+nas            address=127.0.0.10  status=disabled     —         —             enabled=false
+
+127.0.0.9 返回 80KiB，超过 DefaultMaxBodyBytes=64KiB，因此即使 HTTP 200 也判为
+probe_error，不误报成功。127.0.0.10 为计数服务器，探测后 `/__count` 返回 0，
+证明禁用目标没有发起任何请求。
+原始响应：run-body-limit-disabled.json
+
+## 5. 防重复触发
+
+第一次 POST 返回 202：
+  {"id":"probe-f26e9bb336fba7f3","status":"running","results":[]}
+紧接着第二次 POST 返回 409：
+  HTTP/1.1 409 Conflict
+  {"error":"probe_in_progress","message":"已有探测正在进行，请等待完成",
+   "run_id":"probe-f26e9bb336fba7f3","status":"running"}
+未出现第二个 run，也不会堆积任务。
+原始响应：duplicate-first.json、duplicate-headers.txt、duplicate-second.json、duplicate-completed.json
+
+## 6. 状态语义
+
+- 成功仅接受 HTTP 2xx。
+- 3xx/4xx/5xx -> http_error，并记录 HTTP 状态码。
+- 连接拒绝 -> connection_failed；先 HTTP，仅连接层失败才尝试 HTTPS。
+- 超时 -> timeout。
+- 响应体超限、读取异常、地址校验失败 -> probe_error。
+- 无结果或结果地址与当前配置不一致 -> not_probed。
+- 当前配置禁用 -> disabled，不读取旧结果、不发请求。

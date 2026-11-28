@@ -1,0 +1,63 @@
+# P4.2 test results
+date: 2026-11-28 (Asia/Shanghai)
+
+$ gofmt -l ./cmd ./internal
+(no output)
+
+$ go vet ./...
+(exit 0)
+
+$ go test ./... -count=1
+?   	github.com/laoXuHome/LocalHub/cmd/localhub	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/buildinfo	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/initrole	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/logging	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/static	[no test files]
+ok  	github.com/laoXuHome/LocalHub/internal/approle	17.318s
+ok  	github.com/laoXuHome/LocalHub/internal/auth	2.497s
+ok  	github.com/laoXuHome/LocalHub/internal/bookmark	0.193s
+ok  	github.com/laoXuHome/LocalHub/internal/config	0.022s
+ok  	github.com/laoXuHome/LocalHub/internal/datadir	0.031s
+ok  	github.com/laoXuHome/LocalHub/internal/db	0.093s
+ok  	github.com/laoXuHome/LocalHub/internal/favicon	0.059s
+ok  	github.com/laoXuHome/LocalHub/internal/icon	0.029s
+ok  	github.com/laoXuHome/LocalHub/internal/network	0.111s
+ok  	github.com/laoXuHome/LocalHub/internal/probe	0.499s
+ok  	github.com/laoXuHome/LocalHub/internal/transfer	0.120s
+
+go -json: run=180 pass=180 fail=0
+
+$ cd web && npm test -- --run
+
+> localhub-web@0.1.0 test
+> vitest run --run
+
+
+ RUN  v2.1.9 /home/user/Doubao/chats/38456931691162882/LocalHub-P0/web
+
+ ✓ src/lib.test.ts (18 tests) 12ms
+ ✓ src/editor.test.ts (7 tests) 8ms
+ ✓ src/search.test.ts (7 tests) 8ms
+ ✓ src/network.test.ts (7 tests) 4ms
+ ✓ src/probe.test.ts (5 tests) 26ms
+
+ Test Files  5 passed (5)
+      Tests  44 passed (44)
+   Start at  10:45:30
+   Duration  5.16s (transform 227ms, setup 0ms, collect 474ms, tests 58ms, environment 1ms, prepare 2.28s)
+
+
+$ cd web && npm run build
+
+> localhub-web@0.1.0 build
+> tsc --noEmit && vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 48 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   1.34 kB │ gzip:  0.72 kB
+dist/assets/index-Cg7FC7c9.css   49.10 kB │ gzip:  9.40 kB
+dist/assets/index-BqRFR2NQ.js   198.25 kB │ gzip: 63.98 kB
+✓ built in 1.58s

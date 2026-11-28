@@ -1,0 +1,43 @@
+# P4.2 CI 与多架构验证记录
+日期：2026-11-28（Asia/Shanghai）
+commit: 9de96c6ab5aa71e737510d720ef5e33bc9caadd0
+run: 46099506706
+url: https://github.com/laoXuHome/LocalHub/actions/runs/46099506706
+
+## 结论
+
+run conclusion: success（status=completed，updated_at=2026-11-28T02:51:05Z）
+三个 job 全部 success：
+- 前端构建 job 140838501417：success，02:44:05 → 02:44:19（14s）
+- Go 质量与测试 job 140838501629：success，02:44:05 → 02:44:44（39s）
+- 多架构镜像与 T12 验证 job 140838665527：success，02:44:47 → 02:51:05（6m18s）
+
+## 镜像
+
+- linux/amd64：localhub:amd64，Image ID 8bb85b1ee972，22.3MB
+  `--version` = localhub v0.1.0-p0 commit=9de96c6ab5aa71e737510d720ef5e33bc9caadd0
+  build_time=2026-11-28T02:45:06Z
+- linux/arm64：localhub:arm64，Image ID 9c708e46f5bd，5.24MB
+  `--version` = localhub v0.1.0-p0 commit=9de96c6ab5aa71e737510d720ef5e33bc9caadd0
+  build_time=2026-11-28T02:45:45Z
+- arm64 在 QEMU 下启动：/health HTTP 200，schema_version=8，commit 正确；
+  TERM 后 exit_code=0。
+
+## T12
+
+28 PASS / 0 FAIL，RESULT: ALL PASS。
+A5 重建后数据仍在，schema_version=8（与重建前一致）。
+覆盖 T1 distroless、T2 init 属主、T3/T4 身份、T5 能力缺失、T6 SIGTERM/SIGINT、
+T7 退出码、T8 不可写降级、T9 selftest、T10 符号链接逃逸、A5 持久化。
+
+## Docker Compose 冒烟
+
+compose /health HTTP 200，schema_version=8；
+P1.1 鉴权冒烟：访客 whoami 401、登录 200、退出 200、退出后 401、错误口令 401；
+图标上传/重启后仍可读；transfer 相关 smoke 通过。
+
+## 证据包
+
+GitHub Actions artifact `verification-9de96c6ab5aa71e737510d720ef5e33bc9caadd0.zip`
+ID 15244907941，11,380 bytes：
+https://github.com/laoXuHome/LocalHub/actions/runs/46099506706/artifacts/15244907941

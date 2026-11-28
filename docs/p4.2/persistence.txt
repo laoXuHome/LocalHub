@@ -1,0 +1,40 @@
+# P4.2 服务重启持久化证据
+日期：2026-11-28（Asia/Shanghai）
+服务：/tmp/localhub-p42-final，同一数据目录 /tmp/localhub-p42-data
+
+## 流程
+
+1. 三个启用目标保存为 127.0.0.1 / 127.0.0.3 / 127.0.0.4。
+2. 手动探测 run probe-b27dc5da16384240，三目标 success，checked_at=2026-11-28T02:22:07Z。
+3. 读取管理员结果、公开状态、P4.1 配置，分别保存 before。
+4. 停止 init/app 进程，确认 /health 不可达。
+5. 用同一二进制、同一数据目录重启，/health 返回 200，schema_version=8。
+6. 再次读取相同三个接口，保存 after。
+
+## 结果
+
+$ diff persist-admin-before.json persist-admin-after.json
+(identical)
+
+$ diff persist-public-before.json persist-public-after.json
+(identical)
+
+$ diff persist-targets-before.json persist-targets-after.json
+(identical)
+
+重启后三目标仍为 success，checked_at 保持 02:22:07Z，没有把历史结果改写成新的当前时间。
+页面文案始终为“最近一次手动探测，不代表当前实时可达”，不会把持久化历史结果冒充当前实时成功。
+
+原始文件：persist-admin-before.json、persist-admin-after.json、
+persist-public-before.json、persist-public-after.json、
+persist-targets-before.json、persist-targets-after.json
+
+## 说明
+
+- 单次 run 记录只在进程内保留，服务重启后 GET /api/admin/network/probes/{旧id} 返回 404；
+  持久化的是每个目标的最新结果（network_probe_results），任务书只要求历史最新结果可读取。
+- 探测结果与 P4.1 配置分表；重启前后 network_targets 内容完全一致。
+
+实测重启后旧 run：
+  GET /api/admin/network/probes/probe-b27dc5da16384240 -> HTTP 404
+  {"error":"probe_run_not_found","message":"探测记录不存在"}

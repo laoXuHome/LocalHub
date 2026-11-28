@@ -1,0 +1,60 @@
+# P4.2 超时、并发、SSRF 与重定向限制证据
+日期：2026-11-28（Asia/Shanghai）
+
+## 参数
+
+internal/probe/engine.go：
+  DefaultTimeout      = 4 * time.Second
+  DefaultMaxBodyBytes = 64 << 10
+  Dialer.Timeout                 = 2s
+  TLSHandshakeTimeout            = 2s
+  ResponseHeaderTimeout          = 3s
+  MaxIdleConns                   = 3
+  MaxIdleConnsPerHost            = 2
+  MaxConnsPerHost                = 2
+  Proxy                          = nil
+  CheckRedirect                  = http.ErrUseLastResponse
+
+internal/probe/manager.go：
+  MaxConcurrentProbes = 3
+  RunTimeout          = 8 * time.Second
+
+## 实测
+
+- 慢目标 127.0.0.7 在 3003ms 返回 timeout（ResponseHeaderTimeout=3s，早于单目标 4s）。
+- 80KiB 响应 127.0.0.9 判 probe_error「响应体超过限制」，不读取至无界内存；
+  响应先读 Content-Length 81920，超过 65536 立即拒绝。
+- 302 目标 127.0.0.8 判 http_error 302；夹具只收到 `/`，未收到 Location 的 `/final`。
+- 无监听 127.0.0.5 判 connection_failed；先尝试 HTTP，仅连接层失败后才试 HTTPS，
+  两次均失败合并为「HTTP 与 HTTPS 均连接失败」。
+- 127.0.0.10 禁用目标探测后计数仍为 0，说明没有发起请求。
+- 重复 POST 409，证明只有单航班，不会并发堆积大量探测。
+
+## SSRF / 任意 URL
+
+1. 手动触发接口 `POST /api/admin/network/probe` 没有 URL、地址、目标参数；
+   服务端只从 P4.1 `network_targets` 三个固定 key 读取地址。请求体被忽略。
+2. `GET /api/network/probe?url=http://evil.test` 不存在，实测 HTTP 404。
+   不存在任何接受任意 URL 的公开或管理员探测接口。
+3. 地址保存复用 P4.1 `network.ValidateAddress`：
+   - 拒绝 `://`、路径、查询、用户信息、端口、非法 IPv4/IPv6、非法主机名；
+   - 实测 `http://evil.test` PUT 返回 400 invalid_network_config；
+   - 地址不合法时探测引擎再次校验，直接 probe_error，不发请求。
+4. URL 由 `scheme + "://" + 已校验 host + "/"` 构造，用户不能追加 path/query。
+5. 不跟随 302/301；HTTPS 使用 Go 默认证书校验，不跳过 TLS 验证。
+6. 访客不能调用探测；GET/POST 管理员接口均 401，跨站 Origin POST 403。
+7. 公开接口只输出白名单字段，不含地址与内部错误，故不会泄露内网拓扑。
+8. 探测失败只写 `network_probe_results`，不会 UPDATE `network_targets`、
+   书签或账户；ResultStore 与 network.Store 分表。
+
+## 代码验证与单元测试
+
+- `TestProbeBodyLimitAndInvalidTarget`：Content-Length 超限与非法目标都 probe_error。
+- `TestProbeDoesNotFollowRedirect`：302 只返回 http_error，不请求重定向目标。
+- `TestProbeTimeoutAndConnectionFailure`：timeout 与 connection_failed 分开。
+- `TestProbeDisabledDoesNotRequest`：禁用目标 calls=0。
+- `TestProbeFallsBackToHTTPSOnConnectionFailure`：HTTP 连接失败后才试 HTTPS。
+- `TestNetworkProbePermissionsAndPublicRedaction`：
+  访客 401、公开无地址/错误、`/api/network/probe?url=` 404。
+- `TestNetworkProbeAdminRunRedactionAndDedup`：
+  管理员 run 含地址与失败原因；重复触发第二次 409。

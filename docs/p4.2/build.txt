@@ -1,0 +1,23 @@
+# P4.2 构建与镜像结果汇总
+日期：2026-11-28（Asia/Shanghai）
+commit: 9de96c6ab5aa71e737510d720ef5e33bc9caadd0
+
+## 本地交叉编译（CGO_ENABLED=0，-trimpath -ldflags "-s -w"）
+
+amd64  10,948,760 bytes
+sha256 479064d7179f6ceb7c9442138ce1958ab6245b025870d07dc6f209de387a0a7d
+arm64  10,420,376 bytes
+sha256 5d59bdfbf57eed38b24196bd86ec8e1d3d5f059f3fdee9ce7f92a06fcbe210ea
+
+命令与 file 输出见 build-local.txt。
+
+## CI Docker 镜像
+
+amd64  localhub:amd64  ID 8bb85b1ee972  22.3MB
+arm64  localhub:arm64  ID 9c708e46f5bd  5.24MB
+arm64 在 QEMU 下 /health 200、schema 8、TERM 后 exit_code=0。
+
+## 结论
+
+amd64 与 arm64 均构建成功，镜像构建、arm64 运行、Compose 冒烟和 T12 全部通过。
+详见 ci-summary.txt。

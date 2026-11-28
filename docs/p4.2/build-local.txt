@@ -1,0 +1,18 @@
+# P4.2 多架构构建记录
+date: 2026-11-28 (Asia/Shanghai)
+
+$ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o /tmp/p42-build/localhub-amd64 ./cmd/localhub
+exit=0 elapsed=1s
+
+$ file /tmp/p42-build/localhub-amd64
+/tmp/p42-build/localhub-amd64: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=mCabxoSSe_ptKjTAkIjs/i-NjK9cZZE4cg0RrCiEK/O0C_N2uJonZwxEaN-LEM/OXHqgjop7KhzoNiKbZcH, stripped
+size=10948760 bytes
+479064d7179f6ceb7c9442138ce1958ab6245b025870d07dc6f209de387a0a7d  /tmp/p42-build/localhub-amd64
+
+$ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o /tmp/p42-build/localhub-arm64 ./cmd/localhub
+exit=0 elapsed=2s
+
+$ file /tmp/p42-build/localhub-arm64
+/tmp/p42-build/localhub-arm64: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, Go BuildID=8vRwQYAuUI8SvD1svucC/0ujcq7Sc7z7GqdlKE9jC/h4zmJ-lO9GKaKHqznjJO/dJJKH_euBGmDPvudbZBT, stripped
+size=10420376 bytes
+5d59bdfbf57eed38b24196bd86ec8e1d3d5f059f3fdee9ce7f92a06fcbe210ea  /tmp/p42-build/localhub-arm64
