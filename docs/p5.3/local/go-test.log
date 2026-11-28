@@ -1,0 +1,17 @@
+?   	github.com/laoXuHome/LocalHub/cmd/localhub	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/buildinfo	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/initrole	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/logging	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/static	[no test files]
+ok  	github.com/laoXuHome/LocalHub/internal/approle	17.259s
+ok  	github.com/laoXuHome/LocalHub/internal/auth	(cached)
+ok  	github.com/laoXuHome/LocalHub/internal/bookmark	(cached)
+ok  	github.com/laoXuHome/LocalHub/internal/config	(cached)
+ok  	github.com/laoXuHome/LocalHub/internal/datadir	(cached)
+ok  	github.com/laoXuHome/LocalHub/internal/db	(cached)
+ok  	github.com/laoXuHome/LocalHub/internal/dockerclient	(cached)
+ok  	github.com/laoXuHome/LocalHub/internal/favicon	(cached)
+ok  	github.com/laoXuHome/LocalHub/internal/icon	(cached)
+ok  	github.com/laoXuHome/LocalHub/internal/network	(cached)
+ok  	github.com/laoXuHome/LocalHub/internal/probe	(cached)
+ok  	github.com/laoXuHome/LocalHub/internal/transfer	(cached)

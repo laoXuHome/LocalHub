@@ -1,0 +1,9 @@
+{
+  "run_id": "edc7239cefd340c552956a966e666f72dc4db7f5854538e16b98b55e609ab026",
+  "stop_id": "86ccf6fc1919da143421ab333fe09f59bb1bf15d2a371e83897d9c7f00dc65df",
+  "linked_run": 1,
+  "linked_stop": 2,
+  "linked_shared": 3,
+  "linked_missing": 4,
+  "plain": 5
+}

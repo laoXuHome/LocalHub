@@ -1,0 +1,10 @@
+CI run: 46140472869
+URL: https://github.com/laoXuHome/LocalHub/actions/runs/46140472869
+Commit: ab38f5b9d02a0e861fa3286fecec9dc33f5514a7
+Conclusion: success
+Date: 2026-11-28
+
+Jobs:
+- Go 质量与测试: success (2026-11-28T11:34:30Z)
+- 前端构建: success (2026-11-28T11:34:10Z)
+- 多架构镜像与 T12 验证: success (2026-11-28T11:36:05Z)

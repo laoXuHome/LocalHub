@@ -1,0 +1,3 @@
+go test ./...
+exit=0
+all packages ok (local run; CI also passes with -count=1)

@@ -1,0 +1,1 @@
+localhub v0.1.0-p0 commit=ab38f5b9d02a0e861fa3286fecec9dc33f5514a7 build_time=2026-11-28T11:34:51Z

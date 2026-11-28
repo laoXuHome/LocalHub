@@ -1,0 +1,3 @@
+guest GET /api/admin/docker/bookmark-links -> 401
+admin GET /api/admin/docker/bookmark-links -> 200
+admin read_only -> true

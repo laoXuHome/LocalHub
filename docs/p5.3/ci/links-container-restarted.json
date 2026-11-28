@@ -1,0 +1,66 @@
+{
+  "status": "connected",
+  "checked_at": "2026-11-28T11:35:58Z",
+  "message": "Docker 容器列表已更新",
+  "read_only": true,
+  "containers": [
+    {
+      "id": "86ccf6fc1919da143421ab333fe09f59bb1bf15d2a371e83897d9c7f00dc65df",
+      "name": "p52-stopped",
+      "status": "stopped",
+      "bookmarks": [
+        {
+          "id": 2,
+          "name": "P5.3 停止关联"
+        }
+      ]
+    },
+    {
+      "id": "edc7239cefd340c552956a966e666f72dc4db7f5854538e16b98b55e609ab026",
+      "name": "p52-running",
+      "status": "running",
+      "bookmarks": [
+        {
+          "id": 1,
+          "name": "P5.3 运行关联"
+        },
+        {
+          "id": 3,
+          "name": "P5.3 共享关联"
+        }
+      ]
+    },
+    {
+      "id": "b456ab3f62ba9080a24d406da350353c33a3b2e8cc1dab80095a7cb8b65894e8",
+      "name": "localhub",
+      "status": "running",
+      "bookmarks": []
+    },
+    {
+      "id": "1a52efc4a4d1a4131c19be7dd7eedadaa95ecf06af0b019b26245d3aac74a1e3",
+      "name": "localhub-docker-socket-proxy",
+      "status": "running",
+      "bookmarks": []
+    },
+    {
+      "id": "91514424107c314ba085fed4388f0983f4c5996018c372357a3a95ecf9646e1f",
+      "name": "lh-arm64",
+      "status": "stopped",
+      "bookmarks": []
+    },
+    {
+      "id": "01f95ead039505968be6a8db922f3fca4648380dc9304c15537c510d632c8c03",
+      "name": "buildx_buildkit_builder-828c9dc6-8c47-4fa4-afaf-320f145f75450",
+      "status": "running",
+      "bookmarks": []
+    }
+  ],
+  "missing": [
+    {
+      "bookmark_id": 4,
+      "bookmark_name": "P5.3 缺失关联",
+      "container_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "unlinked": 2
+}

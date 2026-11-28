@@ -1,0 +1,18 @@
+--- P5.3 bookmark links ---
+containers-before.json written
+links-setup.json written
+links-changed.json written
+links-unlinked.json written
+P5.3 setup PASS
+links-after-restart.json written
+P5.3 persistence PASS
+links-container-stopped.json written
+links-container-restarted.json written
+P5.3 status change PASS
+links-outage.json written
+P5.3 outage keeps associations PASS
+links-recovered.json written
+P5.3 recovery PASS
+links-container-removed.json written
+links-same-name-new-id.json written
+P5.3 removed and same-name new ID PASS
