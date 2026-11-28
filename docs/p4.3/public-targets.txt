@@ -1,0 +1,28 @@
+P4.3 public minimal target API
+Admin config set: router enabled 127.0.0.1; bypass_router disabled 127.0.0.3; nas disabled 127.0.0.4.
+
+--- GET /api/network/targets ---
+HTTP/1.1 200 OK
+Cache-Control: no-store
+Content-Type: application/json; charset=utf-8
+Referrer-Policy: same-origin
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Date: Sat, 28 Nov 2026 03:43:43 GMT
+Content-Length: 53
+
+{"targets":[{"key":"router","address":"127.0.0.1"}]}
+
+--- POST /api/network/targets (must not write) ---
+HTTP/1.1 404 Not Found
+Content-Type: text/plain; charset=utf-8
+Referrer-Policy: same-origin
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Date: Sat, 28 Nov 2026 03:43:43 GMT
+Content-Length: 19
+
+404 page not found
+
+Admin save response:
+{"targets":[{"key":"router","label":"主路由器","address":"127.0.0.1","enabled":true},{"key":"bypass_router","label":"旁路由","address":"127.0.0.3","enabled":false},{"key":"nas","label":"NAS","address":"127.0.0.4","enabled":false}],"updated_at":"2026-11-28T03:43:43Z"}

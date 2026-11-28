@@ -1,0 +1,24 @@
+P4.3 CI summary
+
+Commit: e86896f143113bd0c0aff3544ab234a7790eb7b5
+Run: 46104531319
+URL: https://github.com/laoXuHome/LocalHub/actions/runs/46104531319
+Conclusion: success
+
+Jobs:
+- 前端构建 140854200184: success, 24s
+  Tests 67 passed; tsc + vite build 49 modules.
+- Go 质量与测试 140854200381: success, 39s
+  gofmt/vet/build pass; 181 --- PASS, 0 FAIL, 0 SKIP.
+  TestPublicNetworkProbeTargetsMinimal PASS (0.56s).
+- 多架构镜像与 T12 验证 140854371128: success, 4m26s
+  localhub:amd64 d7273803e2f7 22.3MB
+  localhub:arm64 171a92f056d3 5.25MB
+  T12: 28 PASS / 0 FAIL / RESULT ALL PASS; A5 schema_version=8
+  arm64 QEMU: /health 200, TERM exit_code=0
+
+Version:
+localhub v0.1.0-p0 commit=e86896f143113bd0c0aff3544ab234a7790eb7b5 build_time=2026-11-28T03:48:45Z
+localhub v0.1.0-p0 commit=e86896f143113bd0c0aff3544ab234a7790eb7b5 build_time=2026-11-28T03:49:10Z
+
+Artifact: 15246699278 verification-e86896f143113bd0c0aff3544ab234a7790eb7b5

@@ -1,0 +1,14 @@
+Repeat-trigger test: log reset immediately before dispatching 12 synthetic visibilitychange events in AUTO mode.
+Snapshot taken 1.6s later. Only 127.0.0.7 entries belong to this run; later 127.0.0.1 entries were appended during unrelated theme screenshots and are excluded.
+
+127.0.0.7 request count: 6
+
+127.0.0.7 requests:
+127.0.0.7:80 /
+127.0.0.7:80 /
+127.0.0.7:80 /
+127.0.0.7:80 /
+127.0.0.7:80 /
+127.0.0.7:80 /
+
+Expected one run = 2 rounds x 3 targets = 6 requests; 12 triggers produced 6, not 72.

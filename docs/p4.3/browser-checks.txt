@@ -1,0 +1,101 @@
+P4.3 浏览器自动判断验收记录
+时间：2026-11-28（Asia/Shanghai）
+浏览器：Browser Use 已连接 Chromium；桌面视口 1280x900，移动视口 390x844。
+
+【环境与夹具披露】
+- 产品后端：/tmp/localhub-p43，监听 127.0.0.1:11030，复用 P4.2 测试数据 localhub.db（schema 8）。
+- 管理员页面：127.0.0.1:5180，本地截图代理向 /api 注入隔离测试管理员会话；访客页面：127.0.0.1:5181，不注入 Cookie。
+- 探测目标实际使用本地 HTTP 夹具（127.0.0.1/.3/.4/.6/.7/.11/.12），不是用户的真实主路由、旁路由或 NAS。
+- HTTPS 安全策略证据：127.0.0.1:5443，自签证书本地代理；通过 CDP Security.setIgnoreCertificateErrors 打开页面。
+- 无启用目标证据：127.0.0.1:5444 本地代理仅把 GET /api/network/targets 覆写为 {"targets":[]}，其余 API 与静态页正常；因为 P4.1 保存接口禁止零启用目标，真实后台无法保存出这种配置。
+- 所有夹具、自签证书、会话注入均只用于本地验收，不属于产品功能；测试管理员口令未写入仓库或报告。
+
+【1. 打开页面自动判断 LAN】
+- 打开 127.0.0.1:5180，AUTO 模式，全部目标为 127.0.0.1/.3/.4。
+- 顶部显示 LAN；面板显示“当前为 LAN · 自动判断已完成”“最近判断 11:29:14 · 1 轮”。
+- 证据：desktop-lan-top.png、desktop-lan-panel.png。
+
+【2. 任一目标成功即 LAN；一个目标失败不影响其他目标】
+- 目标改为 router=127.0.0.11（连接失败）、bypass_router=127.0.0.3（HTTP 200）、nas 禁用。
+- 刷新后仍判定 LAN，证明失败目标未阻断成功目标。
+- 证据：desktop-single-failure-lan.png。
+- 自动化补充：autodetect.test.ts “returns LAN immediately when any enabled target succeeds”“lets a failing target exception coexist with another target success”。
+
+【3. 第一轮全部失败后执行第二轮并成功】
+- 三个目标均指向 127.0.0.12 专用夹具；前 3 个请求 sleep 2s，使第一轮在 800ms 全部超时；第二轮第 4-6 个请求返回 200。
+- 浏览器最终显示 LAN，面板明确“最近判断 11:35:32 · 2 轮”。
+- 夹具日志：second-round-fixture.txt（request 1-6，前三个 BrokenPipe 为超时中止后的正常结果）。
+- 证据：desktop-second-round-lan.png。
+
+【4. 两轮全部明确失败后 WAN】
+- 三个目标均指向 127.0.0.11:80（连接拒绝）。
+- 顶部显示 WAN；面板显示“当前为 WAN · 两轮探测均未成功”“2 轮”。
+- 证据：desktop-wan-top.png、desktop-wan-panel.png。
+
+【5. 浏览器安全策略阻止时 UNKNOWN】
+- 打开 HTTPS 页面 https://127.0.0.1:5443，目标仍为 HTTP 127.0.0.12。
+- 页面 HTTPS 下 HTTP 目标被 mixed content 预判拦截，HTTPS 目标也失败；结果为 UNKNOWN，面板显示“浏览器安全策略阻止了判断”，没有转成 WAN。
+- 证据：desktop-unknown-security-panel.png。
+- 自动化补充：SecurityError 返回 UNKNOWN，不返回 WAN。
+
+【6. 没有启用目标时 UNKNOWN】
+- 通过 127.0.0.1:5444 夹具返回空目标数组；页面顶部 UNKNOWN，面板显示“没有启用的探测目标”。
+- 没有发出任何目标请求。
+- 证据：desktop-unknown-no-targets-top.png、desktop-unknown-no-targets-panel.png、mobile-unknown-top.png、mobile-unknown-panel.png。
+- 自动化补充：detectNetwork([]) 返回 unknown / no_targets / 0 轮，probe 不被调用。
+
+【7. 手动 LAN/WAN 最高优先级】
+- AUTO 判定 WAN 后手动切到 LAN：顶部立即 LAN；面板显示“当前为手动 LAN，自动判断不会覆盖”；刷新并等待 3s 后仍为 LAN。
+- 手动切到 WAN 后等待 5.5s，顶部仍为 WAN，未被 AUTO 的 LAN 结果覆盖。
+- 证据：desktop-manual-wan-panel.png、desktop-manual-wan-after-wait.png、desktop-manual-lan-panel.png、desktop-manual-lan-reload.png。
+
+【8. 切回 AUTO 后自动判断重新接管】
+- 从手动 LAN 切回 AUTO，自动判断约 1 轮后显示 LAN；面板显示“当前为 LAN · 自动判断已完成”。
+- 证据：desktop-auto-retake.png。
+
+【9. 浏览器从后台恢复后重新判断】
+- 新建并显式切换到 about:blank 标签，保持 4s 后切回 LocalHub。
+- 页面由 11:32:09 的旧结果更新为 11:33:09，并重新请求 /api/network/targets 与目标根路径。
+- 证据：desktop-foreground-recheck.png。
+
+【10. 浏览器网络变化触发重新判断】
+- CDP Network.emulateNetworkConditions offline=true：navigator.onLine=false，页面顶部变 UNKNOWN；面板显示“浏览器当前离线”。
+- 恢复 offline=false 后 online 事件触发重新判断，顶部回到 LAN。
+- 证据：desktop-offline-unknown-top.png、desktop-offline-unknown-panel.png、desktop-online-lan.png。
+
+【11. 手动重新判断与判断中状态】
+- 点击“重新判断网络”：按钮变“判断中…”并禁用，状态芯片显示“判断中”，顶部入口显示“判断中”。
+- 完成后“最近判断”更新为 11:34:23。
+- 为便于截图，测试时用 CDP 将网络延迟设为 250ms；正常局域网下判断更快。
+- 证据：desktop-judging.png、desktop-manual-recheck-done.png。
+
+【12. 重复触发限制】
+- 一次刷新后等待结果稳定，清空夹具请求日志，再在一个 JS 任务内连续派发 12 次 visibilitychange。
+- 1.6s 后 127.0.0.7 夹具只收到 6 个请求（1 次完整判断的 2 轮 x 3 目标），不是 12 次的 72 个。
+- 证据：repeat-trigger.txt。
+
+【13. 首页和书签不等待探测】
+- 三个目标均指向 sleep 10s 的 127.0.0.7；页面加载后约 180ms 截图。
+- 书签卡片已完整显示，顶部同时显示“判断中”，说明首屏和书签渲染没有被探测阻塞。
+- 证据：desktop-nonblocking.png。
+
+【14. 主题与移动端】
+- 桌面 1280x900：AUTO / 浅色 / 深色三种主题均打开网络面板截取。
+- 移动 390x844：AUTO / 浅色 / 深色三种主题；顶部 LAN 与网络面板均无横向溢出。
+- 证据：desktop-theme-auto.png、desktop-theme-light.png、desktop-theme-dark.png、mobile-lan-auto-top.png、mobile-lan-auto-panel.png、mobile-lan-light-top.png、mobile-lan-light-panel.png、mobile-lan-dark-top.png、mobile-lan-dark-panel.png。
+
+【15. 访客与公开最小目标接口】
+- 访客打开 127.0.0.1:5181，无需管理员会话即可让浏览器判断 LAN；顶部 LAN，面板显示自动判断卡。
+- 访客面板底部仍显示 P4.2 的脱敏“探测结果”，不显示地址、内部错误或探测目标配置。
+- 证据：guest-desktop-top.png、guest-desktop-panel.png、guest-desktop-bottom.png。
+- 接口实测：GET /api/network/targets 200，只含 key/address；POST 返回 404；见 public-targets.txt。
+
+【16. 回归抽查】
+- 首页书签、编辑首页入口、侧边栏与移动底部导航正常显示。
+- P4.2 管理员手动探测结果与“探测结果”入口仍保留，页面文案明确两套探测相互独立。
+- P3.3 书签搜索入口仍存在（desktop-nonblocking.png 顶部“搜索书签”）。
+
+【17. P4.2 / P3.x 回归实测补充】
+- P4.2 管理员“探测结果”页仍可手动探测；三个 127.0.0.1 目标均成功，显示 HTTP 200、4-6ms，结果“3/3 个目标成功”。证据：regression-p42-admin-probe.png。
+- P3.3 书签搜索入口仍可用，输入 jelly 后搜索面板正常出现。证据：regression-p33-search.png。
+- P3.2 管理员编辑首页模式正常进入，工具栏含新增/撤销/重做/桌面/移动/预览/取消/保存；随后取消，不写数据。证据：regression-p32-edit-mode.png。

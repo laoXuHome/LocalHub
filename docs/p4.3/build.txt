@@ -1,0 +1,7 @@
+P4.3 local cross-build
+
+0008411b0942c3f4344e1ac72a66cb8aabf473c30ac8ecc04a4c765db6156b92  /tmp/p43-build/localhub-amd64
+0e844807eff4350c8571644efc14255b83062a260f5b61eed2769002664e75bb  /tmp/p43-build/localhub-arm64
+
+/tmp/p43-build/localhub-amd64: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=jkAJl50Id2z96vW8vu6r/b3vZzLsdK5dOSSzPb4TN/O0C_N2uJonZwxEaN-LEM/zcGgmfDz4hUDG9n2KXvO, stripped
+/tmp/p43-build/localhub-arm64: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, Go BuildID=bSSZCalUvm7WGuBtc5bp/-XUvahGb_Bedbb0T14_s/h4zmJ-lO9GKaKHqznjJO/wGE7Fw0DWOQI_F3kpLWs, stripped

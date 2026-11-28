@@ -1,0 +1,40 @@
+P4.3 本地浏览器验收夹具说明
+
+这些脚本只用于本地验收，不是产品代码，不进入镜像。
+
+1. 产品后端
+   /tmp/localhub-p43，监听 127.0.0.1:11030，复用 P4.2 测试数据 /tmp/localhub-p42-data/localhub.db。
+   启动环境：
+   LOCALHUB_DATA_DIR=/tmp/localhub-p42-data
+   LOCALHUB_DB_PATH=/tmp/localhub-p42-data/localhub.db
+   LOCALHUB_HTTP_ADDR=127.0.0.1
+   LOCALHUB_HTTP_PORT=11030
+   PUID/PGID=当前测试用户
+
+2. 管理员截图代理
+   127.0.0.1:5180，服务 web/dist，并把 /api 转发到 11030；仅在转发头注入隔离测试会话。
+   测试会话 Cookie 位于 /tmp，未写入仓库、报告或截图。
+
+3. 访客页面
+   127.0.0.1:5181，与上面相同但不注入 Cookie，用于验证公开最小目标接口可被访客使用。
+
+4. HTTP 目标夹具
+   127.0.0.1 / .3 / .4 返回 200；127.0.0.11 未监听，连接拒绝；127.0.0.7 sleep 10s。
+   这些是回环地址，不代表用户真实路由器或 NAS。
+
+5. 第一轮失败、第二轮成功夹具
+   test-fixture-second-round.py，127.0.0.12:80；前 3 个请求 sleep 2s，后 3 个返回 200。
+
+6. 无启用目标夹具
+   test-empty-targets-proxy.py，127.0.0.1:5444；只把 GET /api/network/targets 覆写为 {"targets":[]}，其余 API 正常转发。
+   由于 P4.1 保存接口禁止零启用目标，无法通过正常管理配置制造该状态。
+
+7. HTTPS 安全策略夹具
+   test-https-proxy.py，https://127.0.0.1:5443，自签证书本地代理。
+   浏览器通过 CDP Security.setIgnoreCertificateErrors 打开自签页面；页面为 HTTPS、目标为 HTTP，触发 mixed content 预判 UNKNOWN。
+
+8. 截图视口
+   桌面 1280x900；移动 390x844。使用 CDP Emulation.setDeviceMetricsOverride。
+
+9. 判断中截图
+   手动重判时用 CDP 把网络延迟设为 250ms，以便稳定截取“判断中”与禁用按钮；正常 LAN 不设置该延迟。
