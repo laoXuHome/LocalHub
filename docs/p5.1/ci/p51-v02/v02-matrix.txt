@@ -1,0 +1,20 @@
+=== P5.1 V-02 write requests (must be denied) ===
+POST   /containers/create                                   -> 405 Method Not Allowed 
+POST   /containers/p51fixture/start                         -> 405 Method Not Allowed 
+POST   /containers/p51fixture/stop                          -> 405 Method Not Allowed 
+POST   /containers/p51fixture/restart                       -> 405 Method Not Allowed 
+DELETE /containers/p51fixture                               -> 405 Method Not Allowed 
+POST   /containers/p51fixture/exec                          -> 405 Method Not Allowed 
+DELETE /images/alpine:latest                                -> 405 Method Not Allowed 
+POST   /networks/create                                     -> 405 Method Not Allowed 
+POST   /networks/p51net/connect                             -> 405 Method Not Allowed 
+POST   /v1.52/containers/p51fixture/start                   -> 405 Method Not Allowed 
+DELETE /v1.52/images/alpine:latest                          -> 405 Method Not Allowed 
+=== read-only allowlist checks ===
+GET    /version                                             -> 200 {"Platform":{"Name":"Docker Engine - Community"},"Version":"29.4.2","ApiVersion":"1.54","MinAPIVersion":"1.40","Os":"linux","Arch":"amd64","
+GET    /containers/json                                     -> 200 [{"Id":"613ab376165fe422e41c8ed8f9e4ef71c61ba1559b6a802f286c07f15de9b716","Names":["/suspicious_dirac"],"Image":"curlimages/curl:8.11.1","Im
+GET    /images/json                                         -> 403 Forbidden 
+GET    /containers/p51fixture/logs                          -> 403 Forbidden 
+pass=15 fail=0
+base_url=http://docker-socket-proxy:2375
+checked_at=2026-11-28T06:50:29Z

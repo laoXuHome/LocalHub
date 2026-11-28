@@ -1,0 +1,12 @@
+P5.1 Docker 状态色（应用 CSS 在浏览器中的实际 computed style）
+日期：2026-11-28 UTC+8
+方法：在已加载 LocalHub 的页面中创建 .docker-state-dot 元素并读取 getComputedStyle(...).backgroundColor
+
+connected      期望 #16A34A   实测 rgb(22, 163, 74)
+not_connected  期望 #9CA3AF   实测 rgb(156, 163, 175)
+fault          期望 #DC2626   实测 rgb(220, 38, 38)
+unknown        期望 #6B7280   实测 rgb(107, 114, 128)
+
+说明：
+- connection_failed / permission_denied / service_unavailable 共用 fault 红色。
+- 断网/异常状态不使用 connected 绿色或 unknown 灰色。

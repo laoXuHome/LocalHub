@@ -1,0 +1,20 @@
+=== P5.1 V-02 write requests (must be denied) ===
+POST   /containers/create                                   -> 405 Method Not Allowed 
+POST   /containers/p51fixture/start                         -> 405 Method Not Allowed 
+POST   /containers/p51fixture/stop                          -> 405 Method Not Allowed 
+POST   /containers/p51fixture/restart                       -> 405 Method Not Allowed 
+DELETE /containers/p51fixture                               -> 405 Method Not Allowed 
+POST   /containers/p51fixture/exec                          -> 405 Method Not Allowed 
+DELETE /images/alpine:latest                                -> 405 Method Not Allowed 
+POST   /networks/create                                     -> 405 Method Not Allowed 
+POST   /networks/p51net/connect                             -> 405 Method Not Allowed 
+POST   /v1.52/containers/p51fixture/start                   -> 405 Method Not Allowed 
+DELETE /v1.52/images/alpine:latest                          -> 405 Method Not Allowed 
+=== read-only allowlist checks ===
+GET    /version                                             -> 200 {"Platform":{"Name":""},"Version":"29.1.3","ApiVersion":"1.52","MinAPIVersion":"1.44","Os":"linux","Arch":"amd64","Components":[{"Name":"Eng
+GET    /containers/json                                     -> 200 [] 
+GET    /images/json                                         -> 403 Forbidden 
+GET    /containers/p51fixture/logs                          -> 403 Forbidden 
+pass=15 fail=0
+base_url=http://127.0.0.1:12375
+checked_at=2026-11-28T06:36:12Z

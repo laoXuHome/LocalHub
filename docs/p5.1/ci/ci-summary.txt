@@ -1,0 +1,18 @@
+P5.1 CI 记录
+
+功能代码提交：e483babdad319f968078c07465a857572e321aab
+CI run：46118051488
+结果：success
+- 前端构建：success（17s）
+- Go 质量与测试：success（44s）
+- 多架构镜像与 T12 验证：success（4m42s）
+
+关键 P5.1 结果：
+- 管理员 Docker 状态：{"status":"connected","api_version":"1.54",...,"read_only":true}
+- 访客 Docker 状态：HTTP 401
+- V-02：15 PASS / 0 FAIL
+- 停止 Proxy 后：connection_failed，/health 200，/api/bookmarks 200
+- 重启 Proxy 后：connected 恢复
+- Compose：localhub 与 localhub-docker-socket-proxy 均运行
+
+说明：CI 中的 Socket Proxy 是真实容器，连接 GitHub Actions 宿主 Docker Engine（29.4.2）。

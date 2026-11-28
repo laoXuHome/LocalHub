@@ -1,0 +1,78 @@
+name: localhub-p0
+services:
+  docker-socket-proxy:
+    container_name: localhub-docker-socket-proxy
+    environment:
+      SP_ALLOW_GET: (/version|/_ping|/containers/json|/containers/[a-zA-Z0-9_.-]+/json|/v1\.[0-9]+/(version|_ping|containers/json|containers/[a-zA-Z0-9_.-]+/json))
+      SP_ALLOW_HEAD: /_ping
+      SP_ALLOWFROM: localhub
+      SP_LISTENIP: 0.0.0.0
+    expose:
+      - "2375"
+    group_add:
+      - "107"
+    image: wollomatic/socket-proxy:1.14.0
+    networks:
+      docker-proxy: null
+    read_only: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+        bind:
+          create_host_path: true
+  localhub:
+    container_name: localhub
+    depends_on:
+      docker-socket-proxy:
+        condition: service_started
+        required: true
+    environment:
+      LOCALHUB_ADMIN_PASSWORD: ""
+      LOCALHUB_ADMIN_USERNAME: admin
+      LOCALHUB_COOKIE_SECURE: "0"
+      LOCALHUB_DATA_DIR: /data
+      LOCALHUB_DOCKER_API_URL: http://docker-socket-proxy:2375
+      LOCALHUB_DOCKER_TIMEOUT: 3s
+      LOCALHUB_HTTP_PORT: "11030"
+      LOCALHUB_LOG_LEVEL: info
+      LOCALHUB_SESSION_TTL: 12h
+      PGID: "1000"
+      PUID: "1000"
+      TZ: Asia/Singapore
+    healthcheck:
+      test:
+        - CMD
+        - /localhub
+        - --healthcheck
+      timeout: 5s
+      interval: 30s
+      retries: 3
+      start_period: 15s
+    image: localhub:latest
+    networks:
+      default: null
+      docker-proxy: null
+    ports:
+      - mode: ingress
+        target: 11030
+        published: "11030"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /home/user/Doubao/chats/38456931691162882/LocalHub-P0/localhub-data
+        target: /data
+        bind:
+          create_host_path: true
+networks:
+  default:
+    name: localhub-p0_default
+  docker-proxy:
+    name: localhub-p0_docker-proxy
+    driver: bridge
+    internal: true

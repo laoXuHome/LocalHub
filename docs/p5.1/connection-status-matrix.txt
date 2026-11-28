@@ -1,0 +1,15 @@
+P5.1 连接状态矩阵（本地实测）
+
+| 场景 | 配置/触发 | API 状态 | 期望颜色 | 证据 |
+|---|---|---|---|---|
+| 已连接 | http://127.0.0.1:12375 -> 真实 socket-proxy -> 真实 Docker Engine | connected | #16A34A | status-connected-final.json；desktop-connected-light/dark/auto.png；mobile-connected-auto/dark.png |
+| 未连接 | 未配置 LOCALHUB_DOCKER_API_URL | not_connected | #9CA3AF | status-none.json；desktop-not-connected.png |
+| 连接失败 | http://127.0.0.1:12377 无监听 | connection_failed | #DC2626 | status-fail.json；desktop-connection-failed.png |
+| 权限不足 | http://127.0.0.1:12376，Proxy ACL 拒绝来源 | permission_denied | #DC2626 | status-permission-denied.json；permission-denied-body.txt；desktop-permission-denied.png |
+| 服务不可用 | 停止 dockerd，保留 Proxy | service_unavailable | #DC2626 | status-service-unavailable.json；docker-down-proxy-response.txt |
+| 未知 | 200 但非 Docker 响应（临时 Python fixture） | unknown | #6B7280 | status-unknown-simulated.json；desktop-unknown-dark.png |
+
+说明：
+- 前五项来自真实网络请求；其中“已连接”经过真实 Proxy 和真实 Docker Engine。
+- “未知”的 200 响应由本地临时 fixture 返回，是模拟 Docker 响应，不是真实 Docker 环境；仅用于验证客户端对非法/非 Docker JSON 的 unknown 映射。
+- “服务不可用”为真实 Docker Engine 停止后 Proxy 返回 502 的实测结果。

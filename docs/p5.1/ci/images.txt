@@ -1,0 +1,10 @@
+localhub:arm64 e2c5f7f5206b 5.26MB
+localhub:amd64 ed9133a6f30e 22.3MB
+ghcr.io/github/gh-aw-mcpg:latest 3223d0c57522 270MB
+ghcr.io/github/gh-aw-firewall/squid:latest 00fa6db859de 85.4MB
+ghcr.io/github/gh-aw-firewall/agent:latest 271aa6f147ef 1.47GB
+ghcr.io/github/gh-aw-firewall/api-proxy:latest 04779d40ad81 534MB
+ghcr.io/dependabot/dependabot-updater-core:latest 02e4641ea31f 1.27GB
+moby/buildkit:buildx-stable-1 baf6138eb8c3 366MB
+ghcr.io/github/github-mcp-server:latest 040c4e998100 72.7MB
+tonistiigi/binfmt:latest 400a4873b838 118MB

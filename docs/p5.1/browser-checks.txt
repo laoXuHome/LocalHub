@@ -1,0 +1,28 @@
+P5.1 浏览器验收记录
+日期：2026-11-28 UTC+8
+浏览器：computer_use_tool plane=bu（Chromium）
+应用：本地构建的 LocalHub，前端来自已构建 web/dist；状态接口连接真实宿主 socket-proxy
+
+视口：
+- 桌面 1920×993
+- 移动端 390×844（CDP Emulation.setDeviceMetricsOverride，验收后已 clearDeviceMetricsOverride）
+
+已保存截图（docs/p5.1/browser/）：
+- desktop-connected-light.png：桌面浅色，connected，绿色点
+- desktop-connected-dark.png：桌面深色，connected，绿色点
+- desktop-connected-auto.png：桌面 AUTO，connected，绿色点
+- mobile-connected-auto.png：移动端 AUTO，connected，面板未溢出
+- mobile-connected-dark.png：移动端深色，connected
+- desktop-permission-denied.png：桌面浅色，permission_denied，红色点
+- desktop-connection-failed.png：桌面浅色，connection_failed，红色点
+- desktop-not-connected.png：桌面浅色，not_connected，灰色点
+- desktop-unknown-dark.png：桌面深色，unknown，深灰色点
+
+检查结果：
+- 桌面/移动端均能打开 Docker 状态面板。
+- AUTO/LIGHT/DARK 三种主题下文本、背景、状态点均可见，无对比度异常。
+- 面板不展示 Docker URL、Socket 路径、上游响应体或错误堆栈。
+- 访客打开面板显示“仅管理员可查看”，不请求管理员状态数据。
+- 每 20 秒自动刷新；提供“重新检测”按钮。
+
+实际 computed style 见 color-checks.txt。

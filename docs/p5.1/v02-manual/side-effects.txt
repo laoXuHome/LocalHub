@@ -1,0 +1,11 @@
+# docker ps -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+# docker images
+WARNING: This output is designed for human readability. For machine-readable output, please use --format.
+IMAGE   ID             DISK USAGE   CONTENT SIZE   EXTRA
+# docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+eeea65279c66   host      host      local
+3870ab1e2440   none      null      local
+# docker volume ls
+DRIVER    VOLUME NAME

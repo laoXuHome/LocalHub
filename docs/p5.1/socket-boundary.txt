@@ -1,0 +1,20 @@
+# Docker Socket 引用边界（排除 .git、node_modules、web/dist、docs/p5.1 历史证据）
+
+./.env.example:39:# 宿主机 /var/run/docker.sock 的组 GID；用 stat -c '%g' /var/run/docker.sock 获取
+./.github/workflows/ci.yml:133:          export LOCALHUB_DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+./docker-compose.yml:57:      - /var/run/docker.sock:/var/run/docker.sock:ro
+./docs/p5.1-docker-proxy.md:11:            └─ /var/run/docker.sock（容器内只读挂载）
+./docs/p5.1-docker-proxy.md:15:- LocalHub 容器**不挂载** `/var/run/docker.sock`，只能通过 Proxy 的 HTTP 接口访问 Docker。
+./docs/p5.1-docker-proxy.md:41:| `LOCALHUB_DOCKER_GID` | `999` | 宿主机 `/var/run/docker.sock` 所属组的 GID。Proxy 以 UID/GID `65534` 运行，需要该补充组才能读取 Socket。**部署前应改成实际值**。 |
+./docs/p5.1-docker-proxy.md:47:stat -c '%g' /var/run/docker.sock
+./docs/p5.1-docker-proxy.md:53:ls -ln /var/run/docker.sock
+./docs/p5.1-docker-proxy.md:154:- **状态 `permission_denied`**：检查 `LOCALHUB_DOCKER_GID` 是否等于 `stat -c '%g' /var/run/docker.sock`。
+./docs/p5.1-docker-proxy.md:156:- **不要**为了排障把 `/var/run/docker.sock` 挂载进 LocalHub，也不要临时开放完整 Docker API；这会绕过 P5.1 的安全边界。
+./internal/approle/docker_http_test.go:48:	for _, forbidden := range []string{fixture.URL, "127.0.0.1", "/var/run/docker.sock", "error"} {
+./internal/config/config_test.go:129:		{"Unix Socket 被拒", "LOCALHUB_DOCKER_API_URL=unix:///var/run/docker.sock", "LOCALHUB_DOCKER_API_URL"},
+./internal/dockerclient/dockerclient_test.go:15:		"unix:///var/run/docker.sock",
+
+# 结论
+1. 只有 docker-compose.yml 的 docker-socket-proxy 服务只读挂载 Docker Socket。
+2. localhub 服务的 volumes 只有 LOCALHUB_DATA_DIR -> /data，没有 Docker Socket。
+3. Go 代码没有 unix:// Docker 客户端；配置校验拒绝 unix://。

@@ -1,0 +1,13 @@
+--- auth smoke ---
+{"authenticated":false,"needs_setup":false,"role":"guest","session_ttl_seconds":43200}
+
+guest whoami HTTP 401
+login HTTP 200
+{"id":1,"role":"admin","session_created_at":"2026-11-28T06:50:26Z","session_expires_at":"2026-11-28T18:50:26Z","session_ttl_seconds":43200,"username":"admin"}
+
+guest docker status HTTP 401
+{"status":"connected","api_version":"1.54","checked_at":"2026-11-28T06:50:26Z","message":"Docker 只读连接正常","read_only":true}
+
+logout HTTP 200
+after logout whoami HTTP 401
+wrong password HTTP 401
