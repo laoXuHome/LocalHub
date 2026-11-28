@@ -1,0 +1,145 @@
+{
+  "status": "connected",
+  "checked_at": "2026-11-28T09:31:58Z",
+  "message": "Docker 容器列表已更新",
+  "read_only": true,
+  "refresh_interval_seconds": 30,
+  "containers": [
+    {
+      "id": "8abe282eeadc73b73fffa757bf8349e46aa09062fe4b70996fee58730dfe0b7d",
+      "name": "p52-stopped",
+      "image": "alpine:3.20",
+      "status": "stopped",
+      "created_at": "2026-11-28T09:31:54Z",
+      "ports": [],
+      "labels": {},
+      "_ports": []
+    },
+    {
+      "id": "6a02992617fc2e13812a17a17c6413ef487ed3aac11a26dca8e06fe874d3562b",
+      "name": "p52-running",
+      "image": "alpine:3.20",
+      "status": "running",
+      "created_at": "2026-11-28T09:31:54Z",
+      "started_at": "2026-11-28T09:31:54Z",
+      "ports": [],
+      "labels": {},
+      "_ports": []
+    },
+    {
+      "id": "39d916a739250756658b95cfee7a79be22b003f2eedabf77f76592f1c644a12f",
+      "name": "localhub",
+      "image": "localhub:amd64",
+      "status": "running",
+      "created_at": "2026-11-28T09:31:52Z",
+      "started_at": "2026-11-28T09:31:55Z",
+      "ports": [
+        "*:18090->11030/tcp",
+        "*:18090->11030/tcp"
+      ],
+      "labels": {
+        "com.docker.compose.config-hash": "f0f068f20bb61a9dfc37b1e6a59208cec59b010186d40d460784c6314f3979f4",
+        "com.docker.compose.container-number": "1",
+        "com.docker.compose.depends_on": "docker-socket-proxy:service_started:false",
+        "com.docker.compose.image": "sha256:d5309e1a718d9429725d5c9df6837cfed7de7576310f4e1a3ad1d35557876f8f",
+        "com.docker.compose.oneoff": "False",
+        "com.docker.compose.project": "localhub",
+        "com.docker.compose.project.config_files": "/home/runner/work/LocalHub/LocalHub/docker-compose.yml",
+        "com.docker.compose.project.working_dir": "/home/runner/work/LocalHub/LocalHub",
+        "com.docker.compose.service": "localhub",
+        "com.docker.compose.version": "5.1.3",
+        "org.opencontainers.image.created": "2026-11-28T09:30:47Z",
+        "org.opencontainers.image.description": "本地优先的 NAS 书签与服务面板（P0 基础设施）",
+        "org.opencontainers.image.revision": "4e5f4e8d2646be4c1460c2547a9b5038ebe59619",
+        "org.opencontainers.image.source": "https://github.com/laoXuHome/LocalHub",
+        "org.opencontainers.image.title": "LocalHub",
+        "org.opencontainers.image.version": "v0.1.0-p0"
+      },
+      "_ports": [
+        {
+          "IP": "0.0.0.0",
+          "PrivatePort": 11030,
+          "PublicPort": 18090,
+          "Type": "tcp"
+        },
+        {
+          "IP": "::",
+          "PrivatePort": 11030,
+          "PublicPort": 18090,
+          "Type": "tcp"
+        }
+      ]
+    },
+    {
+      "id": "eb39227d13e4526b0f50b65bf9300076142b042181ef9f0adf4d1d828207631f",
+      "name": "localhub-docker-socket-proxy",
+      "image": "wollomatic/socket-proxy:1.14.0",
+      "status": "running",
+      "created_at": "2026-11-28T09:31:51Z",
+      "started_at": "2026-11-28T09:31:58Z",
+      "ports": [
+        "2375/tcp"
+      ],
+      "labels": {
+        "com.docker.compose.config-hash": "9325244203dbde160806e7199832a287a1192f85eb90c07d7f62705fb3339251",
+        "com.docker.compose.container-number": "1",
+        "com.docker.compose.depends_on": "",
+        "com.docker.compose.image": "sha256:fead157c4de4092461267092be49c993c2e6dd296a54c89ed04b8c870016b045",
+        "com.docker.compose.oneoff": "False",
+        "com.docker.compose.project": "localhub",
+        "com.docker.compose.project.config_files": "/home/runner/work/LocalHub/LocalHub/docker-compose.yml",
+        "com.docker.compose.project.working_dir": "/home/runner/work/LocalHub/LocalHub",
+        "com.docker.compose.service": "docker-socket-proxy",
+        "com.docker.compose.version": "5.1.3",
+        "org.opencontainers.image.description": "A lightweight Unix socket proxy with configurable access controls",
+        "org.opencontainers.image.documentation": "https://github.com/wollomatic/socket-proxy/blob/main/README.md",
+        "org.opencontainers.image.licenses": "MIT AND Apache-2.0",
+        "org.opencontainers.image.source": "https://github.com/wollomatic/socket-proxy",
+        "org.opencontainers.image.title": "wollomatic/socket-proxy",
+        "org.opencontainers.image.url": "https://github.com/wollomatic/socket-proxy"
+      },
+      "_ports": [
+        {
+          "PrivatePort": 2375,
+          "Type": "tcp"
+        }
+      ]
+    },
+    {
+      "id": "91415741426b6c782575b5e98e53811031cdb17d05288ed5ff8ade8eed3737d1",
+      "name": "lh-arm64",
+      "image": "localhub:arm64",
+      "status": "stopped",
+      "created_at": "2026-11-28T09:31:48Z",
+      "started_at": "2026-11-28T09:31:48Z",
+      "ports": [],
+      "labels": {
+        "org.opencontainers.image.created": "2026-11-28T09:31:20Z",
+        "org.opencontainers.image.description": "本地优先的 NAS 书签与服务面板（P0 基础设施）",
+        "org.opencontainers.image.revision": "4e5f4e8d2646be4c1460c2547a9b5038ebe59619",
+        "org.opencontainers.image.source": "https://github.com/laoXuHome/LocalHub",
+        "org.opencontainers.image.title": "LocalHub",
+        "org.opencontainers.image.version": "v0.1.0-p0"
+      },
+      "_ports": []
+    },
+    {
+      "id": "94b8dc98fe0d1d725582c637bbf578eccef3a8d42b7b7e1ff1848e2f91ccdc62",
+      "name": "buildx_buildkit_builder-e3c78967-04af-49de-a05b-d668171bf68c0",
+      "image": "moby/buildkit:buildx-stable-1",
+      "status": "running",
+      "created_at": "2026-11-28T09:30:46Z",
+      "started_at": "2026-11-28T09:30:46Z",
+      "ports": [],
+      "labels": {},
+      "_ports": []
+    }
+  ],
+  "counts": {
+    "total": 6,
+    "running": 4,
+    "stopped": 2,
+    "error": 0,
+    "unknown": 0
+  }
+}

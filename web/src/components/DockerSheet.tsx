@@ -94,16 +94,20 @@ export function DockerSheet({ isAdmin, onClose }: Props) {
         if (listResult.status === 'fulfilled') nextList = listResult.value
         else if (!failure) failure = messageFor(listResult.reason)
 
+        const previousList = dataRef.current?.list
+        const listConnected = nextList?.status === 'connected'
+        const keepPreviousList = Boolean(nextList && !listConnected && previousList?.containers.length)
+        if (!failure && nextList && !listConnected) failure = nextList.message || 'Docker 连接异常'
         if (nextList || nextStatus) {
           setData((previous) => ({
             status: nextStatus || (nextList ? fallbackStatus(nextList) : previous?.status || null),
-            list: nextList || previous?.list || null,
+            list: listConnected ? nextList : keepPreviousList ? previous?.list || null : nextList || previous?.list || null,
           }))
         }
         if (failure) {
           // 保留上一次有效容器数据；只标记状态，不把容器改成 stopped。
           setError(failure)
-          setStale(Boolean(!nextList && dataRef.current?.list))
+          setStale(Boolean(keepPreviousList || (!nextList && previousList?.containers.length)))
         } else {
           setError('')
           setStale(false)

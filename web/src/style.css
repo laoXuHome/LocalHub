@@ -3791,7 +3791,8 @@ img {
 .docker-container-list {
   max-height: min(48vh, 520px);
   margin-top: 4px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
@@ -3802,7 +3803,7 @@ img {
   top: 0;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(150px, 1.1fr) minmax(150px, 1fr) minmax(170px, 1.2fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.2fr);
   gap: 12px;
   padding: 8px 13px;
   border-bottom: 1px solid var(--border);
@@ -3815,7 +3816,7 @@ img {
 
 .docker-container {
   display: grid;
-  grid-template-columns: minmax(150px, 1.1fr) minmax(150px, 1fr) minmax(170px, 1.2fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.2fr);
   gap: 12px;
   padding: 12px 13px;
   border-bottom: 1px solid var(--border);

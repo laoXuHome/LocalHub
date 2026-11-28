@@ -1,0 +1,20 @@
+P5.2 四态映射验证（单元测试）
+日期：2026-11-28
+
+用例输入 -> 期望/实际：
+State=running, Status=Up 2 hours                         -> running
+State=running, Status=Up 2 hours (unhealthy)             -> error
+State=exited,  Status=Exited (0)                         -> stopped
+State=created, Status=Created                            -> stopped
+State=restarting, Status=Restarting (1)                  -> error
+State=dead, Status=Dead                                  -> error
+State=paused, Status=Paused                              -> error
+State=removing, Status=Removal In Progress               -> error
+State="", Status=""                                      -> unknown
+非法 JSON                                                -> unknown / 跳过，不影响列表
+
+颜色：running #16A34A；stopped #9CA3AF；error #DC2626；unknown #6B7280
+前端 tone：running=connected；stopped=not_connected；error=fault；unknown=unknown
+
+测试结果：go test ./internal/dockerclient ok；前端 7 files / 78 tests passed。
+证据：go-test.log、frontend-test.log、internal/dockerclient/containers_test.go、web/src/docker.test.ts

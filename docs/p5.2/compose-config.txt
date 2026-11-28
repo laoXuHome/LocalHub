@@ -1,0 +1,77 @@
+name: localhub
+services:
+  docker-socket-proxy:
+    container_name: localhub-docker-socket-proxy
+    environment:
+      SP_ALLOW_GET: (/version|/_ping|/containers/json|/containers/[a-zA-Z0-9_.-]+/json|/v1\.[0-9]+/(version|_ping|containers/json|containers/[a-zA-Z0-9_.-]+/json))
+      SP_ALLOW_HEAD: /_ping
+      SP_ALLOWFROM: localhub
+      SP_LISTENIP: 0.0.0.0
+    expose:
+      - "2375"
+    group_add:
+      - "112"
+    image: wollomatic/socket-proxy:1.14.0
+    networks:
+      docker-proxy: null
+    read_only: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+        bind: {}
+  localhub:
+    container_name: localhub
+    depends_on:
+      docker-socket-proxy:
+        condition: service_started
+        required: true
+    environment:
+      LOCALHUB_ADMIN_PASSWORD: Ci-Smoke-Passw0rd!2026
+      LOCALHUB_ADMIN_USERNAME: admin
+      LOCALHUB_COOKIE_SECURE: "0"
+      LOCALHUB_DATA_DIR: /data
+      LOCALHUB_DOCKER_API_URL: http://docker-socket-proxy:2375
+      LOCALHUB_DOCKER_REFRESH_INTERVAL: 30s
+      LOCALHUB_DOCKER_TIMEOUT: 3s
+      LOCALHUB_HTTP_PORT: "11030"
+      LOCALHUB_LOG_LEVEL: info
+      LOCALHUB_SESSION_TTL: 12h
+      PGID: "1000"
+      PUID: "1000"
+      TZ: Asia/Shanghai
+    healthcheck:
+      test:
+        - CMD
+        - /localhub
+        - --healthcheck
+      timeout: 5s
+      interval: 30s
+      retries: 3
+      start_period: 15s
+    image: localhub:amd64
+    networks:
+      default: null
+      docker-proxy: null
+    ports:
+      - mode: ingress
+        target: 11030
+        published: "18090"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /home/runner/work/LocalHub/LocalHub/.ci-compose
+        target: /data
+        bind: {}
+networks:
+  default:
+    name: localhub_default
+  docker-proxy:
+    name: localhub_docker-proxy
+    driver: bridge
+    internal: true

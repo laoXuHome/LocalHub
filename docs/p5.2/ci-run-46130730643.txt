@@ -1,0 +1,25 @@
+
+✓ main CI · 46130730643
+Triggered via push about 12 minutes ago
+
+JOBS
+✓ Go 质量与测试 in 37s (ID 140935076542)
+✓ 前端构建 in 22s (ID 140935076870)
+✓ 多架构镜像与 T12 验证 in 1m34s (ID 140935240349)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-go@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Go 质量与测试: .github#2
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+前端构建: .github#2
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/upload-artifact@v4, docker/setup-buildx-action@v3, docker/setup-qemu-action@v3. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+多架构镜像与 T12 验证: .github#2
+
+
+ARTIFACTS
+verification-4e5f4e8d2646be4c1460c2547a9b5038ebe59619
+
+For more information about a job, try: gh run view --job=<job-id>
+View this run on GitHub: https://github.com/laoXuHome/LocalHub/actions/runs/46130730643

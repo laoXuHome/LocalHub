@@ -1,0 +1,4 @@
+{"time":"2026-11-28T17:31:46.227260981+08:00","level":"INFO","msg":"init 启动","role":"init","service":"localhub","pid":1,"euid":0,"egid":0,"data_dir":"/data","allowed_root":"/data","puid":1000,"pgid":1000,"allow_root":false}
+{"time":"2026-11-28T17:31:46.227400902+08:00","level":"INFO","msg":"数据目录校验通过","role":"init","service":"localhub","realpath":"/data","allowed_root":"/data"}
+{"time":"2026-11-28T17:31:46.227459199+08:00","level":"ERROR","msg":"目录初始化失败","role":"init","service":"localhub","error":"创建目录 \"/data/icons\" 失败：mkdir /data/icons: permission denied","code":"DATA_DIR_CREATE_FAILED"}
+{"time":"2026-11-28T17:31:46.227472219+08:00","level":"ERROR","msg":"提示：容器需要 CAP_CHOWN/CAP_SETUID/CAP_SETGID，请勿使用 cap_drop: ALL；并确认挂载目录可写","role":"init","service":"localhub"}

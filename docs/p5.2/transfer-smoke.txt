@@ -1,0 +1,11 @@
+--- transfer smoke ---
+export json HTTP 200
+export count 1
+import preview HTTP 200
+preview 1 1 ['工作', '项目']
+import execute HTTP 200
+created 1
+after restart /health HTTP 200
+restart folder ['工作', '项目']
+export html HTTP 200
+guest export HTTP 401
