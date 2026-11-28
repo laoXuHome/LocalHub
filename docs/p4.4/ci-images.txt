@@ -1,0 +1,8 @@
+P4.4 镜像与健康检查摘录
+2026-11-28T05:43:54.7141145Z localhub:amd64 e687fb1495d7 22.3MB
+2026-11-28T05:43:59.0500756Z [36;1mecho "arm64 /health HTTP $code"[0m
+2026-11-28T05:43:59.7163386Z arm64 /health HTTP 200
+2026-11-28T05:43:59.7187274Z {"build_time":"2026-11-28T05:40:31Z","commit":"d43396601c7059a318683424c381f4a6a601da33","data":{"allowed_root":"/data","error":"","last_check":"2026-11-28T13:43:59+08:00","path":"/data","writable":true},"database":{"error":"","path":"/data/localhub.db","schema_version":8,"status":"ok"},"process":{"gid":1000,"is_root":false,"pid":13,"role":"app","uid":1000},"status":"ok","tz":"Asia/Shanghai","uptime_seconds":0,"version":"v0.1.0-p0"}
+2026-11-28T05:44:01.7705777Z [36;1mecho "compose /health HTTP $code"[0m
+2026-11-28T05:44:03.1036379Z compose /health HTTP 200
+2026-11-28T05:44:03.1061083Z {"build_time":"2026-11-28T05:40:00Z","commit":"d43396601c7059a318683424c381f4a6a601da33","data":{"allowed_root":"/data","error":"","last_check":"2026-11-28T13:44:02+08:00","path":"/data","writable":true},"database":{"error":"","path":"/data/localhub.db","schema_version":8,"status":"ok"},"process":{"gid":1000,"is_root":false,"pid":12,"role":"app","uid":1000},"status":"ok","tz":"Asia/Shanghai","uptime_seconds":1,"version":"v0.1.0-p0"}

@@ -1,0 +1,16 @@
+P4.4 CI 结果
+run: 46113055590
+sha: d43396601c7059a318683424c381f4a6a601da33
+url: https://github.com/laoXuHome/LocalHub/actions/runs/46113055590
+
+Job: 前端构建（ID 140880656013） success 22s
+Job: Go 质量与测试（ID 140880656258） success 40s
+Job: 多架构镜像与 T12 验证（ID 140880815347） success
+
+镜像:
+localhub:amd64 e687fb1495d7 22.3MB
+localhub:arm64 built; QEMU /health HTTP 200
+
+T12: 28 PASS / 0 FAIL; RESULT: ALL PASS
+Compose: /health HTTP 200; schema_version=8; writable=true
+Artifact: verification-d43396601c7059a318683424c381f4a6a601da33 (ID 15250872172)

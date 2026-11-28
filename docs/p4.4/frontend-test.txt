@@ -1,0 +1,19 @@
+
+> localhub-web@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /home/user/Doubao/chats/38456931691162882/LocalHub-P0/web
+
+ ✓ src/autodetect.test.ts (22 tests) 29ms
+ ✓ src/lib.test.ts (22 tests) 6ms
+ ✓ src/network.test.ts (10 tests) 6ms
+ ✓ src/editor.test.ts (7 tests) 5ms
+ ✓ src/search.test.ts (7 tests) 4ms
+ ✓ src/probe.test.ts (5 tests) 16ms
+
+ Test Files  6 passed (6)
+      Tests  73 passed (73)
+   Start at  13:30:28
+   Duration  14.36s (transform 282ms, setup 0ms, collect 1.09s, tests 66ms, environment 1ms, prepare 8.37s)
+

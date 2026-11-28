@@ -1,0 +1,24 @@
+P4.4 code diff (unstaged, before docs/commit)
+ web/src/App.tsx                        | 10 +++++++---
+ web/src/components/BookmarkCard.tsx    |  5 ++++-
+ web/src/components/NetworkSheet.tsx    |  7 ++++++-
+ web/src/components/SpotlightSearch.tsx | 14 ++++++++------
+ web/src/lib.test.ts                    | 23 +++++++++++++++++++++++
+ web/src/lib.ts                         | 22 +++++++++++++++++++++-
+ web/src/network.test.ts                | 25 +++++++++++++++++++++++++
+ web/src/network.ts                     | 33 ++++++++++++++++++++++++++++++++-
+ web/src/style.css                      | 34 ++++++++++++++++++++++++++++++++++
+ 9 files changed, 160 insertions(+), 13 deletions(-)
+
+numstat
+7	3	web/src/App.tsx
+4	1	web/src/components/BookmarkCard.tsx
+6	1	web/src/components/NetworkSheet.tsx
+8	6	web/src/components/SpotlightSearch.tsx
+23	0	web/src/lib.test.ts
+21	1	web/src/lib.ts
+25	0	web/src/network.test.ts
+32	1	web/src/network.ts
+34	0	web/src/style.css
+
+9 files: 160 insertions, 13 deletions

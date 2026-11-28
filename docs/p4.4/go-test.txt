@@ -1,0 +1,19 @@
+$ gofmt -l .
+$ go vet ./...
+$ go test ./... -count=1
+?   	github.com/laoXuHome/LocalHub/cmd/localhub	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/buildinfo	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/initrole	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/logging	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/static	[no test files]
+ok  	github.com/laoXuHome/LocalHub/internal/approle	15.010s
+ok  	github.com/laoXuHome/LocalHub/internal/auth	2.102s
+ok  	github.com/laoXuHome/LocalHub/internal/bookmark	0.078s
+ok  	github.com/laoXuHome/LocalHub/internal/config	0.006s
+ok  	github.com/laoXuHome/LocalHub/internal/datadir	0.008s
+ok  	github.com/laoXuHome/LocalHub/internal/db	0.030s
+ok  	github.com/laoXuHome/LocalHub/internal/favicon	0.025s
+ok  	github.com/laoXuHome/LocalHub/internal/icon	0.011s
+ok  	github.com/laoXuHome/LocalHub/internal/network	0.031s
+ok  	github.com/laoXuHome/LocalHub/internal/probe	0.409s
+ok  	github.com/laoXuHome/LocalHub/internal/transfer	0.049s

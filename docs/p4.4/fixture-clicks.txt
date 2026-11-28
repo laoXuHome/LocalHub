@@ -1,0 +1,6 @@
+P4.4 address fixture 点击日志（/tmp/p44-fixture.log 摘录）
+说明：只记录实际浏览器的书签打开请求，AUTO 探测请求路径为 /。
+{"time": "13:24:01", "port": 18088, "path": "/lan/p44-dual"}
+{"time": "13:26:42", "port": 18088, "path": "/lan/p44-dual"}
+{"time": "13:29:24", "port": 18088, "path": "/wan/p44-dual"}
+{"time": "13:29:48", "port": 18088, "path": "/lan/p44-self"}

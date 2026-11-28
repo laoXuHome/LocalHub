@@ -1,0 +1,105 @@
+P4.4 浏览器验收记录
+日期：2026-11-28（Asia/Shanghai）
+前端：http://127.0.0.1:5190（管理员代理）/ http://127.0.0.1:5191（访客代理）
+后端：http://127.0.0.1:11130
+地址夹具：http://127.0.0.1:18088
+
+测试书签（通过 API 创建）
+1. P44 内外网：LAN http://127.0.0.1:18088/lan/p44-dual；WAN http://127.0.0.1:18088/wan/p44-dual；新标签；public
+2. P44 仅 LAN：LAN http://127.0.0.1:18088/lan/p44-lan-only；WAN 空；新标签；public
+3. P44 仅 WAN：LAN 空；WAN http://127.0.0.1:18088/wan/p44-wan-only；新标签；public
+4. P44 当前标签：LAN http://127.0.0.1:18088/lan/p44-self；WAN http://127.0.0.1:18088/wan/p44-self；open_mode=self；public
+5. P44 私有：LAN/WAN http://127.0.0.1:18088/private/*；private
+
+后端拒绝创建 LAN/WAN 两端全空的书签：
+invalid_bookmark：至少需要填写 LAN URL 或 WAN URL
+因此“两端全空”由前端单元测试覆盖，浏览器用“仅 LAN / 仅 WAN”覆盖单侧缺失。
+
+AUTO LAN（初始三目标 127.0.0.1 均为 success）
+- 顶部入口 aria：网络模式 AUTO，当前 LAN，书签使用 LAN 地址
+- P44 内外网 href：http://127.0.0.1:18088/lan/p44-dual
+- P44 当前标签 href：http://127.0.0.1:18088/lan/p44-self
+- target：普通书签 _blank；P44 当前标签 _self
+- 面板文案：“当前为 LAN · 自动判断已完成”“书签打开：LAN 地址”
+- 点击 P44 内外网：实际打开 /lan/p44-dual（见 fixture-clicks.txt 13:26:42）
+- 截图：desktop-auto-lan-home.png、desktop-auto-lan-panel.png
+
+AUTO WAN（三目标改为 10.255.255.1:80，两轮均失败）
+- 顶部入口 aria：网络模式 AUTO，当前 WAN，书签使用 WAN 地址
+- P44 内外网 href：http://127.0.0.1:18088/wan/p44-dual
+- P44 仅 LAN（WAN 缺失）href：http://127.0.0.1:18088/lan/p44-lan-only
+- P44 当前标签 href：http://127.0.0.1:18088/wan/p44-self
+- 面板文案：“当前为 WAN · 两轮探测均未成功”“书签打开：WAN 地址”
+- 截图：desktop-auto-wan-home.png、desktop-auto-wan-panel.png
+- 网络变化后再次点击 P44 内外网：实际打开 /wan/p44-dual（13:29:24），说明后续点击使用最新有效状态
+- 截图：desktop-auto-wan-after-change.png
+
+手动 LAN 优先（AUTO 当时仍为 WAN）
+- 点击模式选择 LAN，提示“已切换为 LAN，仅保存于当前浏览器”
+- 顶部入口 aria：网络模式 LAN，当前 LAN，书签使用 LAN 地址
+- P44 内外网 href：/lan/p44-dual；P44 当前标签 href：/lan/p44-self
+- P44 仅 WAN（LAN 缺失）href：/wan/p44-wan-only（地址缺失回退到原有默认 URL，未拼接）
+- 面板文案：“书签打开：LAN 地址”“当前为手动 LAN，自动判断不会覆盖。”
+- 等待 15 秒后仍为手动 LAN，href 未变化
+- 刷新页面后仍为手动 LAN，href 未变化
+- 截图：desktop-manual-lan-panel.png、desktop-manual-lan-after-wait.png、desktop-manual-lan-reload.png
+
+手动 WAN 优先（AUTO 当时已恢复 LAN）
+- 切换 WAN 后顶部 aria：网络模式 WAN，当前 WAN，书签使用 WAN 地址
+- P44 内外网 href：/wan/p44-dual；P44 当前标签 href：/wan/p44-self
+- P44 仅 LAN（WAN 缺失）href：/lan/p44-lan-only（地址缺失回退到原有默认 URL，未拼接）
+- 面板文案：“书签打开：WAN 地址”“当前为手动 WAN，自动判断不会覆盖。”
+- 刷新页面后仍为手动 WAN，href 未变化
+- 截图：desktop-manual-wan-panel.png、desktop-manual-wan-reload.png
+
+切回 AUTO
+- AUTO + 三目标 success：自动判断 LAN，href 变为 /lan/p44-dual，状态提示恢复 LAN
+- AUTO + 三目标失败：自动判断 WAN，href 变为 /wan/p44-dual
+- 截图：desktop-auto-retake-lan-panel.png
+
+UNKNOWN
+- 浏览器经 CDP 设为离线，触发 offline 事件
+- 顶部 aria：网络模式 AUTO，当前 UNKNOWN，书签使用默认地址
+- 面板文案：“UNKNOWN”“无法确定（UNKNOWN）· 浏览器当前离线”“书签打开：默认地址”
+- P44 内外网 href：http://127.0.0.1:18088/wan/p44-dual
+- 说明：选择器返回 default，不把 UNKNOWN 当作 LAN 或 WAN；该 WAN 地址来自 P4.4 之前既有的默认 URL 规则（合法 WAN 优先），不是 UNKNOWN 判定为 WAN
+- 截图：desktop-auto-unknown-panel.png
+
+判断中不阻塞
+- 在已加载首页点击“重新判断网络”，探测目标为 10.255.255.1
+- 按钮变为“判断中… [disabled]”
+- 顶部 aria：网络模式 AUTO，当前 判断中，书签使用默认地址
+- 面板文案：“判断中”“书签打开：默认地址”
+- 首页 4 个可见书签仍完整显示；P44 内外网 href 为默认 WAN，未使用过期 LAN 结果
+- 截图：desktop-auto-judging-panel.png
+
+搜索结果
+- AUTO LAN 下搜索“P44 内外网”
+- 搜索结果 role=option href：http://127.0.0.1:18088/lan/p44-dual
+- 按 Enter 实际打开 /lan/p44-dual（13:26:42）
+- 截图：desktop-auto-lan-search.png
+
+访客权限（5191，无管理员 Cookie）
+- 只显示 4 个 public 书签；P44 私有 不在首页
+- 首页 href 使用 LAN：P44 内外网 /lan/p44-dual
+- 顶部 aria：网络模式 AUTO，当前 LAN，书签使用 LAN 地址
+- 截图：guest-desktop-home.png
+
+移动端（390×844，DPR 2，访客 5191）
+- AUTO LAN：P44 内外网 href /lan/p44-dual；P44 仅 WAN href /wan/p44-wan-only
+- 手动 WAN：P44 内外网 href /wan/p44-dual；P44 当前标签 href /wan/p44-self
+- 与桌面端使用同一选择函数，结果一致
+- 截图：mobile-auto-lan-home.png、mobile-auto-lan-panel.png、mobile-manual-wan-panel.png
+
+打开方式
+- 普通书签 target=_blank；P44 当前标签 target=_self
+- 实际点击 P44 当前标签：同一 tab id 从 5190 首页变为 /lan/p44-self（13:29:48）
+- 实际点击普通书签：新标签打开 /lan/p44-dual 与 /wan/p44-dual
+
+编辑模式回归
+- 管理员点击“编辑首页”正常进入编辑模式，5 个书签全部显示，新增/撤销/重做/保存等按钮正常
+- 截图：desktop-edit-mode-regression.png
+
+首页书签卡片
+- 卡片只显示图标和名称；未增加 LAN/WAN URL 文案
+- 网络状态提示只出现在顶部网络入口和网络设置面板

@@ -1,0 +1,17 @@
+P4.4 验收矩阵
+1 手动 LAN 选择 LAN：PASS。P44 内外网 /lan/p44-dual；当前标签 /lan/p44-self。
+2 手动 WAN 选择 WAN：PASS。P44 内外网 /wan/p44-dual；当前标签 /wan/p44-self。
+3 手动 LAN 不被 AUTO 覆盖：PASS。AUTO 为 WAN 时切手动 LAN，等待 15 秒及刷新后仍为 LAN。
+4 手动 WAN 不被 AUTO 覆盖：PASS。AUTO 为 LAN 时切手动 WAN，刷新后仍为 WAN。
+5 切回 AUTO LAN：PASS。三目标 success，AUTO 自动判断 LAN，href 恢复 /lan/p44-dual。
+6 切回 AUTO WAN：PASS。三目标失败两轮，AUTO 判断 WAN，href 为 /wan/p44-dual。
+7 UNKNOWN 不错误选择：PASS。选择器返回 default；顶部 aria“书签使用默认地址”，面板“书签打开：默认地址”。UNKNOWN 下实际 URL 来自既有默认规则（WAN 优先），不是把 UNKNOWN 判定为 WAN。
+8 判断中不阻塞：PASS。重新判断时按钮 disabled，首页 4 个可见书签立即存在；选择器返回 default，不沿用过期 LAN 结果。
+9 LAN/WAN 缺失不异常：PASS。仅 WAN 书签在手动 LAN 下回退 WAN；仅 LAN 书签在手动 WAN 下回退 LAN；没有崩溃或书签消失，未拼接地址。
+10 网络变化后最新状态：PASS。AUTO 从 LAN 切到 WAN 后，P44 内外网 href 更新，点击实际打开 /wan/p44-dual。
+11 刷新后手动模式保持：PASS。手动 LAN、手动 WAN 刷新后 href 不变。
+12 管理员与访客权限：PASS。管理员看到 5 个；访客只看到 4 个 public，P44 私有 不可见，访客打开仍使用同一地址规则。
+13 搜索结果点击：PASS。AUTO LAN 搜索 href /lan/p44-dual，Enter 实际打开 /lan/p44-dual。
+14 桌面与移动一致：PASS。390×844 AUTO LAN 为 /lan/p44-dual；手动 WAN 为 /wan/p44-dual；与桌面同一函数。
+15 打开方式：PASS。普通书签 _blank 新标签；open_mode=self 的 P44 当前标签 _self 在同标签打开。
+16 P3.1/P3.2/P3.3/P4.1/P4.2/P4.3 回归：PASS。Go 全量测试通过；前端 73 项通过；编辑模式与搜索页面回归截图通过。
