@@ -1,0 +1,40 @@
+P4.1 自动化测试与构建记录
+
+时间：2026-11-28（Asia/Shanghai）
+代码：功能提交 17029058d2650ae7eb531c986f0646215bc99353
+
+后端
+- gofmt -l ./cmd ./internal：无输出（0 个未格式化文件）
+- go vet ./...：无输出（通过）
+- go test ./... -count=1：全部包 ok
+  - internal/approle 16.340s
+  - internal/auth 2.619s
+  - internal/bookmark 0.182s
+  - internal/config 0.014s
+  - internal/datadir 0.027s
+  - internal/db 0.084s
+  - internal/favicon 0.054s
+  - internal/icon 0.030s
+  - internal/network 0.090s
+  - internal/transfer 0.119s
+- go test -v ./... -count=1：168 个 === RUN 用例，0 失败
+- P4.1 新增 Go 测试：internal/network 5 个顶层测试函数（地址校验、默认不变量、Normalize、重开库持久化、非法保存不部分写入）；internal/approle 1 个管理员权限/校验 HTTP 测试。
+
+前端
+- npm test -- --run：4 个测试文件，39 passed / 0 failed
+  - lib.test.ts 18
+  - editor.test.ts 7
+  - search.test.ts 7
+  - network.test.ts 7（P4.1）
+- npm run build：47 modules transformed，成功
+  - dist/index.html 1.34 kB（gzip 0.72 kB）
+  - CSS 46.23 kB（gzip 8.92 kB）
+  - JS 193.11 kB（gzip 62.28 kB）
+
+本地交叉构建
+- CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath：通过，/tmp/localhub-amd64，16M，ELF x86-64 静态链接
+- CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath：通过，/tmp/localhub-arm64，15M，ELF aarch64 静态链接
+
+容器与 T12
+- 本地执行环境无 docker（docker: command not found），T12 未在本地执行。
+- 由 CI image job 在 amd64 镜像上执行 scripts/t12.sh，并使用 QEMU 验证 arm64 启动。

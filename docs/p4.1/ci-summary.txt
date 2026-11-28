@@ -1,0 +1,28 @@
+P4.1 CI 与多架构验证摘要
+
+功能提交：17029058d2650ae7eb531c986f0646215bc99353
+CI Run：46093987885
+URL：https://github.com/laoXuHome/LocalHub/actions/runs/46093987885
+结论：success（completed）
+
+Jobs：
+- Go 质量与测试：success，job 140821064317
+- 前端构建：success，job 140821064562
+- 多架构镜像与 T12 验证：success，job 140821210970
+
+镜像：
+- localhub:amd64 375d50bdba13 22.2MB
+- localhub:arm64 55d2045821b9 5.21MB
+- amd64 version: localhub v0.1.0-p0 commit=17029058d2650ae7eb531c986f0646215bc99353
+- arm64 version: localhub v0.1.0-p0 commit=17029058d2650ae7eb531c986f0646215bc99353
+
+T12：
+- 28 PASS / 0 FAIL
+- RESULT: ALL PASS
+- A5 重建后数据仍在，schema_version=7（与重建前一致）
+
+arm64 QEMU：
+- /health HTTP 200，schema_version=7
+- 收到 TERM 后 exit_code=0
+
+说明：以上数字取 CI artifact verification-17029058.../t12.log、images.txt、health-arm64.json、arm64-exit.txt。

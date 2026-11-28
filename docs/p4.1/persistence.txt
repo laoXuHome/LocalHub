@@ -1,0 +1,12 @@
+P4.1 服务重启持久化证据
+
+环境：独立数据目录 /tmp/localhub-persist-data，端口 11031，二进制 /tmp/localhub-p41。
+步骤：
+1. 空数据目录首次启动，schema_version=7。
+2. 管理员登录，PUT 保存三个启用目标（测试地址 10.10.0.1 / 10.10.0.2 / 10.10.0.20）。
+3. 读取保存结果（persist-before-restart.json）。
+4. 停止 init 与 app 进程，/health 确认 down。
+5. 使用同一数据目录重新启动，管理员重新登录。
+6. 重新 GET（persist-after-restart.json），三目标值与 updated_at 完全一致。
+
+结论：配置写入 SQLite 并在服务重启后保留，未依赖进程内存。

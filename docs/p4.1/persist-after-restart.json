@@ -1,0 +1,1 @@
+{"targets":[{"key":"router","label":"主路由器","address":"10.10.0.1","enabled":true},{"key":"bypass_router","label":"旁路由","address":"10.10.0.2","enabled":true},{"key":"nas","label":"NAS","address":"10.10.0.20","enabled":true}],"updated_at":"2026-11-28T01:29:49Z"}

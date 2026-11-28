@@ -1,0 +1,32 @@
+P4.1 权限与配置校验证据
+时间：2026-11-28T01:37:12Z
+后端：/tmp/localhub-p41，端口 11030，schema 7，独立空数据目录重建
+说明：以下均为本地测试后端；管理员会话通过 /api/auth/login 建立，测试口令不写入本文件。
+
+== 访客权限 ==
+$ curl -s -o /tmp/g -w "%{http_code}" http://127.0.0.1:11030/api/admin/network/targets
+HTTP 401
+{"error":"unauthorized","message":"需要管理员登录"}
+
+$ curl -s -o /tmp/g -w "%{http_code}" -X PUT ... /api/admin/network/targets
+HTTP 401
+{"error":"unauthorized","message":"需要管理员登录"}
+
+
+== 非法地址：http:// 前缀 ==
+HTTP 400
+{"error":"invalid_network_config","message":"网络配置不合法：请填写 IP 或主机名，不要包含 http:// 或 https://（NAS）"}
+
+
+== 三个目标全部禁用 ==
+HTTP 400
+{"error":"invalid_network_config","message":"网络配置不合法：至少需要启用一个探测目标"}
+
+
+== 非法 IPv4（999.999.999.999） ==
+HTTP 400
+{"error":"invalid_network_config","message":"网络配置不合法：IPv4 地址不合法，或地址不能是纯数字（主路由器）"}
+
+
+== 非法请求后配置未变化 ==
+{"targets":[{"key":"router","label":"主路由器","address":"router.local","enabled":true},{"key":"bypass_router","label":"旁路由","address":"","enabled":false},{"key":"nas","label":"NAS","address":"","enabled":false}],"updated_at":"2026-11-28T01:25:43Z"}
