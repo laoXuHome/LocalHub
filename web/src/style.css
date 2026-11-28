@@ -3501,3 +3501,214 @@ img {
     gap: 5px;
   }
 }
+
+/* ============ P5.1 Docker 只读连接状态 ============ */
+
+.docker-sheet {
+  width: min(500px, 100%);
+}
+
+.docker-state-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 15px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.docker-state-card[data-tone='connected'] {
+  border-color: rgba(22, 163, 74, 0.28);
+}
+
+.docker-state-card[data-tone='fault'] {
+  border-color: rgba(220, 38, 38, 0.26);
+}
+
+.docker-state-icon {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.docker-state-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.docker-state-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.docker-state-copy strong {
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 560;
+  line-height: 1.5;
+}
+
+.docker-state-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.docker-state-dot[data-tone='connected'] {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
+}
+
+.docker-state-dot[data-tone='not_connected'] {
+  background: #9ca3af;
+}
+
+.docker-state-dot[data-tone='fault'] {
+  background: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.docker-state-dot[data-tone='unknown'] {
+  background: #6b7280;
+}
+
+.docker-state-card[data-tone='connected'] .docker-state-kicker {
+  color: #16a34a;
+}
+
+.docker-state-card[data-tone='not_connected'] .docker-state-kicker {
+  color: #9ca3af;
+}
+
+.docker-state-card[data-tone='fault'] .docker-state-kicker {
+  color: #dc2626;
+}
+
+.docker-state-card[data-tone='unknown'] .docker-state-kicker {
+  color: #6b7280;
+}
+
+.docker-readonly-chip {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 780;
+  letter-spacing: 0.08em;
+}
+
+.docker-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 9px 0 0;
+}
+
+.docker-meta > div {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.docker-meta dt {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 620;
+}
+
+.docker-meta dd {
+  margin: 3px 0 0;
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.docker-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.docker-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.docker-skeleton span {
+  display: block;
+  height: 42px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, var(--surface), var(--surface-strong), var(--surface));
+  background-size: 200% 100%;
+  animation: docker-skeleton 1.3s ease-in-out infinite;
+}
+
+@keyframes docker-skeleton {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.docker-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 34px 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.docker-empty-icon {
+  display: inline-flex;
+  width: 46px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.docker-empty strong {
+  font-size: 15px;
+}
+
+.docker-empty p {
+  max-width: 290px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .docker-meta {
+    grid-template-columns: 1fr;
+  }
+}

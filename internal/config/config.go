@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -41,6 +42,10 @@ type Config struct {
 	LoginMaxFailures int
 	LoginWindow      time.Duration
 	LoginLockout     time.Duration
+
+	// P5.1 Docker 只读连接。DockerAPIURL 为空表示未配置，不应阻止启动。
+	DockerAPIURL  string
+	DockerTimeout time.Duration
 }
 
 // Load 从进程环境读取配置。
@@ -69,6 +74,7 @@ func LoadFrom(env []string) (*Config, error) {
 		LogLevel:           strings.ToLower(get("LOCALHUB_LOG_LEVEL", "info")),
 		TZ:                 get("TZ", "Asia/Shanghai"),
 		WriteCheckInterval: 60 * time.Second,
+		DockerTimeout:      3 * time.Second,
 	}
 
 	var problems []string
@@ -214,6 +220,25 @@ func LoadFrom(env []string) (*Config, error) {
 		}
 	}
 
+	// —— P5.1 Docker 只读连接 ——
+	// 只接受 HTTP(S) 或 Docker 惯例的 tcp://；unix:// 被拒绝，防止绕过 Socket Proxy。
+	if v := get("LOCALHUB_DOCKER_API_URL", ""); v != "" {
+		u, err := normalizeDockerAPIURL(v)
+		if err != nil {
+			bad("LOCALHUB_DOCKER_API_URL=%q 非法：%v", v, err)
+		} else {
+			c.DockerAPIURL = u
+		}
+	}
+	if v, ok := m["LOCALHUB_DOCKER_TIMEOUT"]; ok && strings.TrimSpace(v) != "" {
+		d, err := time.ParseDuration(strings.TrimSpace(v))
+		if err != nil || d < 500*time.Millisecond || d > 30*time.Second {
+			bad("LOCALHUB_DOCKER_TIMEOUT=%q 非法，需为 500ms-30s 的时长（如 3s）", v)
+		} else {
+			c.DockerTimeout = d
+		}
+	}
+
 	if c.PUID == 0 && !c.AllowRoot {
 		bad("PUID=0 被拒绝：业务进程不得以 root 运行；如确需如此，必须同时设置 ALLOW_ROOT=1")
 	}
@@ -233,6 +258,45 @@ func LoadFrom(env []string) (*Config, error) {
 		return nil, fmt.Errorf("配置校验失败：%s", strings.Join(problems, "；"))
 	}
 	return c, nil
+}
+
+// normalizeDockerAPIURL 校验并归一化 Docker 连接地址。
+// 该函数不允许 unix://、用户信息、路径、查询参数或片段。
+func normalizeDockerAPIURL(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	lower := strings.ToLower(raw)
+	if strings.HasPrefix(lower, "unix://") {
+		return "", fmt.Errorf("不允许 unix://，必须通过 Docker Socket Proxy")
+	}
+	if strings.HasPrefix(lower, "tcp://") {
+		raw = "http://" + raw[len("tcp://"):]
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", fmt.Errorf("地址无法解析")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", fmt.Errorf("只支持 http://、https:// 或 tcp://")
+	}
+	if u.User != nil {
+		return "", fmt.Errorf("不得包含用户名或口令")
+	}
+	if u.Hostname() == "" {
+		return "", fmt.Errorf("缺少主机")
+	}
+	if u.Path != "" && u.Path != "/" {
+		return "", fmt.Errorf("不得包含路径")
+	}
+	if u.RawQuery != "" || u.Fragment != "" {
+		return "", fmt.Errorf("不得包含查询参数或片段")
+	}
+	if port := u.Port(); port != "" {
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
+			return "", fmt.Errorf("端口非法")
+		}
+	}
+	return u.Scheme + "://" + u.Host, nil
 }
 
 // authNameOK 校验用户名（避免空白与超长）。

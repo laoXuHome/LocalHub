@@ -19,9 +19,18 @@ services:
       # 会话有效期与 Cookie 安全标记（HTTPS 前置代理时设为 1）
       - LOCALHUB_SESSION_TTL=${LOCALHUB_SESSION_TTL:-12h}
       - LOCALHUB_COOKIE_SECURE=${LOCALHUB_COOKIE_SECURE:-0}
+      # P5.1 Docker 只读连接：只指向 Socket Proxy，绝不挂载 Docker Socket
+      - LOCALHUB_DOCKER_API_URL=${LOCALHUB_DOCKER_API_URL:-http://docker-socket-proxy:2375}
+      - LOCALHUB_DOCKER_TIMEOUT=${LOCALHUB_DOCKER_TIMEOUT:-3s}
     volumes:
       # 冒号左侧由部署者自定义，可与 compose 文件所在目录不同
       - ${LOCALHUB_DATA_DIR:-./localhub-data}:/data
+    networks:
+      - default
+      - docker-proxy
+    depends_on:
+      docker-socket-proxy:
+        condition: service_started
     # 不要写 cap_drop: ALL：入口需要 CAP_CHOWN / CAP_SETUID / CAP_SETGID
     restart: unless-stopped
     healthcheck:
@@ -30,3 +39,36 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  # P5.1 Docker Socket Proxy：LocalHub 访问 Docker API 的唯一入口。
+  # 权限采用 HTTP 方法 + 路径 allowlist，只允许只读 GET 与 HEAD /_ping。
+  docker-socket-proxy:
+    image: ${LOCALHUB_DOCKER_PROXY_IMAGE:-wollomatic/socket-proxy:1.14.0}
+    container_name: ${LOCALHUB_DOCKER_PROXY_CONTAINER:-localhub-docker-socket-proxy}
+    environment:
+      # 默认只允许名为 localhub 的容器连接；测试覆盖时可显式加入临时客户端
+      - SP_ALLOWFROM=${LOCALHUB_DOCKER_PROXY_ALLOWFROM:-localhub}
+      - SP_LISTENIP=0.0.0.0
+      # 仅开放当前和 P5.2 只读发现所需的路径；写方法未配置即默认拒绝
+      - SP_ALLOW_GET=(/version|/_ping|/containers/json|/containers/[a-zA-Z0-9_.-]+/json|/v1\.[0-9]+/(version|_ping|containers/json|containers/[a-zA-Z0-9_.-]+/json))
+      - SP_ALLOW_HEAD=/_ping
+    volumes:
+      # 只读挂载，Proxy 自身也拿不到 Docker Socket 写权限
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    expose:
+      - "2375"
+    # 非 root 运行；附加宿主机 Docker Socket 所属组，组号由部署者提供
+    group_add:
+      - "${LOCALHUB_DOCKER_GID:-999}"
+    networks:
+      - docker-proxy
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+networks:
+  default:
+  docker-proxy:
+    driver: bridge
+    internal: true

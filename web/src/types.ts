@@ -125,3 +125,20 @@ export type NetworkProbeRun = {
   finished_at?: string
   results: NetworkProbeResult[]
 }
+
+// P5.1 Docker 只读连接状态。仅包含脱敏状态，不包含连接地址或 Socket 路径。
+export type DockerConnectionStatus =
+  | 'connected'
+  | 'not_connected'
+  | 'connection_failed'
+  | 'permission_denied'
+  | 'service_unavailable'
+  | 'unknown'
+
+export type DockerStatusInfo = {
+  status: DockerConnectionStatus
+  api_version?: string
+  checked_at: string
+  message: string
+  read_only: boolean
+}

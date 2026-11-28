@@ -129,6 +129,9 @@ jobs:
           export LOCALHUB_PORT=18090
           export LOCALHUB_DATA_DIR="$PWD/.ci-compose"
           export LOCALHUB_ADMIN_PASSWORD="Ci-Smoke-Passw0rd!2026"
+          # Socket Proxy 以非 root 运行，需要宿主机 Docker Socket 的组号
+          export LOCALHUB_DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+          echo "docker socket gid=$LOCALHUB_DOCKER_GID"
           docker compose config > ci-artifacts/compose-config.txt
           docker compose up -d 2>&1 | tee ci-artifacts/compose-up.txt
           code=000
@@ -157,6 +160,18 @@ jobs:
           who=$(curl -s --max-time 3 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/whoami | tee -a ci-artifacts/auth-smoke.txt)
           echo >> ci-artifacts/auth-smoke.txt
           echo "$who" | grep -q '"role":"admin"'
+          # P5.1 Docker 状态鉴权与只读连接：访客 401，管理员 connected
+          guest_docker=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/admin/docker/status)
+          echo "guest docker status HTTP $guest_docker" | tee -a ci-artifacts/auth-smoke.txt
+          test "$guest_docker" = "401"
+          docker_status=$(curl -s --max-time 5 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/docker/status | tee -a ci-artifacts/auth-smoke.txt)
+          echo >> ci-artifacts/auth-smoke.txt
+          echo "$docker_status" | grep -q '"status":"connected"'
+          echo "$docker_status" | grep -q '"read_only":true'
+          if echo "$docker_status" | grep -q 'docker-socket-proxy:2375'; then
+            echo "Docker 状态响应泄露了连接地址" >&2
+            exit 1
+          fi
           logout=$(curl -s --max-time 3 -b compose-cookies.txt -X POST -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/auth/logout)
           echo "logout HTTP $logout" | tee -a ci-artifacts/auth-smoke.txt
           after=$(curl -s --max-time 3 -b compose-cookies.txt -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/admin/whoami)
@@ -274,6 +289,43 @@ jobs:
             "http://127.0.0.1:18090/api/admin/bookmarks/export?format=json")
           echo "guest export HTTP $guest_exp" | tee -a ci-artifacts/transfer-smoke.txt
           test "$guest_exp" = "401"
+
+          # P5.1 V-02：在 LocalHub 的网络命名空间内，通过同一 Socket Proxy 发起写请求
+          echo "--- P5.1 V-02 write rejection ---" | tee ci-artifacts/p51-v02.log
+          mkdir -p ci-artifacts/p51-v02
+          chmod 777 ci-artifacts/p51-v02
+          docker run --rm --network container:localhub --entrypoint sh \
+            -e P51_DOCKER_PROXY_URL=http://docker-socket-proxy:2375 \
+            -e P51_ARTIFACT_DIR=/out \
+            -v "$PWD/scripts:/scripts:ro" \
+            -v "$PWD/ci-artifacts/p51-v02:/out" \
+            curlimages/curl:8.11.1 /scripts/p51-v02.sh 2>&1 | tee -a ci-artifacts/p51-v02.log
+          test ${PIPESTATUS[0]} -eq 0
+          docker compose logs --no-color docker-socket-proxy > ci-artifacts/p51-proxy.log 2>&1 || true
+          test "$(docker ps -aq --filter name=p51fixture | wc -l)" = "0"
+          test "$(docker network ls --filter name=p51net --format '{{.Name}}' | wc -l)" = "0"
+
+          # Docker 不可用时：状态为连接失败，但首页、书签和健康检查仍正常
+          echo "--- P5.1 Docker unavailable regression ---" | tee ci-artifacts/p51-outage.log
+          docker stop localhub-docker-socket-proxy >/dev/null
+          sleep 1
+          outage_status=$(curl -s --max-time 8 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/docker/status)
+          echo "status=$outage_status" | tee -a ci-artifacts/p51-outage.log
+          echo "$outage_status" | grep -q '"status":"connection_failed"'
+          outage_health=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/health)
+          outage_bookmarks=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/bookmarks)
+          echo "health=$outage_health bookmarks=$outage_bookmarks" | tee -a ci-artifacts/p51-outage.log
+          test "$outage_health" = "200"
+          test "$outage_bookmarks" = "200"
+          docker start localhub-docker-socket-proxy >/dev/null
+          recovered=0
+          for i in $(seq 1 20); do
+            recovered=$(curl -s --max-time 5 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/docker/status | grep -c '"status":"connected"' || true)
+            [ "$recovered" = "1" ] && break
+            sleep 1
+          done
+          echo "recovered=$recovered" | tee -a ci-artifacts/p51-outage.log
+          test "$recovered" = "1"
 
           docker compose down 2>&1 | tee -a ci-artifacts/compose-up.txt
           test "$code" = "200"

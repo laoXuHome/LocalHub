@@ -96,3 +96,52 @@ func TestListenAddr(t *testing.T) {
 		t.Errorf("ListenAddr 期望 127.0.0.1:18080，得到 %s", got)
 	}
 }
+
+func TestDockerConfigDefaultsAndNormalization(t *testing.T) {
+	c, err := LoadFrom(nil)
+	if err != nil {
+		t.Fatalf("默认配置不应报错：%v", err)
+	}
+	if c.DockerAPIURL != "" {
+		t.Fatalf("默认 Docker 地址应为空，得到 %q", c.DockerAPIURL)
+	}
+	if c.DockerTimeout != 3*time.Second {
+		t.Fatalf("默认 Docker 超时应为 3s，得到 %v", c.DockerTimeout)
+	}
+
+	c, err = LoadFrom([]string{
+		"LOCALHUB_DOCKER_API_URL=tcp://docker-socket-proxy:2375",
+		"LOCALHUB_DOCKER_TIMEOUT=5s",
+	})
+	if err != nil {
+		t.Fatalf("合法的 Docker 配置不应报错：%v", err)
+	}
+	if c.DockerAPIURL != "http://docker-socket-proxy:2375" {
+		t.Fatalf("tcp:// 应归一化为 http://，得到 %q", c.DockerAPIURL)
+	}
+	if c.DockerTimeout != 5*time.Second {
+		t.Fatalf("Docker 超时错误：%v", c.DockerTimeout)
+	}
+}
+
+func TestDockerConfigRejectsUnsafeValues(t *testing.T) {
+	cases := []struct{ name, value, want string }{
+		{"Unix Socket 被拒", "LOCALHUB_DOCKER_API_URL=unix:///var/run/docker.sock", "LOCALHUB_DOCKER_API_URL"},
+		{"非 HTTP 协议", "LOCALHUB_DOCKER_API_URL=ftp://proxy:2375", "LOCALHUB_DOCKER_API_URL"},
+		{"带路径", "LOCALHUB_DOCKER_API_URL=http://proxy:2375/v1.52/containers/json", "LOCALHUB_DOCKER_API_URL"},
+		{"带用户信息", "LOCALHUB_DOCKER_API_URL=http://user:pass@proxy:2375", "LOCALHUB_DOCKER_API_URL"},
+		{"超时过短", "LOCALHUB_DOCKER_TIMEOUT=100ms", "LOCALHUB_DOCKER_TIMEOUT"},
+		{"超时过长", "LOCALHUB_DOCKER_TIMEOUT=60s", "LOCALHUB_DOCKER_TIMEOUT"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := LoadFrom([]string{tc.value})
+			if err == nil {
+				t.Fatalf("期望报错，但没有")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("错误信息应包含 %q，实际：%v", tc.want, err)
+			}
+		})
+	}
+}

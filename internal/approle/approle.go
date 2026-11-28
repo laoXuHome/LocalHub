@@ -20,6 +20,7 @@ import (
 	"github.com/laoXuHome/LocalHub/internal/config"
 	"github.com/laoXuHome/LocalHub/internal/datadir"
 	"github.com/laoXuHome/LocalHub/internal/db"
+	"github.com/laoXuHome/LocalHub/internal/dockerclient"
 	"github.com/laoXuHome/LocalHub/internal/favicon"
 	"github.com/laoXuHome/LocalHub/internal/icon"
 	"github.com/laoXuHome/LocalHub/internal/probe"
@@ -68,6 +69,9 @@ type server struct {
 
 	// P4.2 网络探测：手动触发、单执行记录与结果持久化。
 	probe *probe.Manager
+
+	// P5.1 Docker 只读连接。未配置或连接失败都不影响启动。
+	docker *dockerclient.Client
 }
 
 // Run 执行 app 角色：写自检、打开数据库并迁移、提供 /health 与静态页面。
@@ -143,10 +147,24 @@ func Run(cfg *config.Config, log *slog.Logger) int {
 		cancel()
 	}
 	defer func() {
+		// P5.1 Docker 只读连接：初始化失败或不可用只影响状态展示，不影响启动。
+		if dc, err := dockerclient.New(cfg.DockerAPIURL, cfg.DockerTimeout); err != nil {
+			log.Warn("Docker 只读连接配置无效，Docker 功能显示为未知", slog.String("error", err.Error()), slog.String("code", "DOCKER_CONFIG_INVALID"))
+		} else {
+			app.docker = dc
+		}
+
 		if app.db != nil {
 			_ = app.db.Close()
 		}
 	}()
+
+	// P5.1 Docker 只读连接：初始化失败或不可用只影响状态展示，不影响启动。
+	if dc, err := dockerclient.New(cfg.DockerAPIURL, cfg.DockerTimeout); err != nil {
+		log.Warn("Docker 只读连接配置无效，Docker 功能显示为未知", slog.String("error", err.Error()), slog.String("code", "DOCKER_CONFIG_INVALID"))
+	} else {
+		app.docker = dc
+	}
 
 	if app.db != nil {
 		app.auth = newAuthState(app)
@@ -333,6 +351,8 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /api/network/status", s.handlePublicNetworkStatus)
 	// P4.3 浏览器自动判断：公开只读最小启用目标；不包含禁用项、失败详情与任意 URL 能力。
 	mux.HandleFunc("GET /api/network/targets", s.handlePublicNetworkProbeTargets)
+	mux.Handle("GET /api/admin/docker/status", s.requireAdmin(http.HandlerFunc(s.handleAdminDockerStatus)))
+
 	mux.Handle("GET /api/admin/network/results", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkResults)))
 	mux.Handle("POST /api/admin/network/probe", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkProbe)))
 	mux.Handle("GET /api/admin/network/probes/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkProbeRun)))

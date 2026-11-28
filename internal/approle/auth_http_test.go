@@ -15,6 +15,7 @@ import (
 	"github.com/laoXuHome/LocalHub/internal/auth"
 	"github.com/laoXuHome/LocalHub/internal/config"
 	"github.com/laoXuHome/LocalHub/internal/db"
+	"github.com/laoXuHome/LocalHub/internal/dockerclient"
 	"github.com/laoXuHome/LocalHub/internal/icon"
 	"github.com/laoXuHome/LocalHub/internal/probe"
 )
@@ -67,6 +68,7 @@ func newTestServer(t *testing.T, mutate func(*config.Config)) (*server, *httptes
 	}
 	s.auth = newAuthState(s)
 	s.probe = probe.NewManager(database)
+	s.docker, _ = dockerclient.New(cfg.DockerAPIURL, cfg.DockerTimeout)
 	ts := httptest.NewServer(s.logMiddleware(s.routes()))
 	t.Cleanup(ts.Close)
 	return s, ts

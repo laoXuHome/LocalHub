@@ -33,6 +33,7 @@ import { Toast, type ToastMessage, type ToastTone } from './components/Toast'
 import { BookmarkDrawer } from './components/BookmarkDrawer'
 import { ConfirmDialog, type ConfirmRequest } from './components/ConfirmDialog'
 import { EditToolbar } from './components/EditToolbar'
+import { DockerSheet } from './components/DockerSheet'
 import { NetworkSheet } from './components/NetworkSheet'
 import { SpotlightSearch } from './components/SpotlightSearch'
 import {
@@ -112,6 +113,7 @@ export default function App() {
   const [accountOpen, setAccountOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [networkOpen, setNetworkOpen] = useState(false)
+  const [dockerOpen, setDockerOpen] = useState(false)
   const [networkMode, setNetworkMode] = useState<NetworkMode>(readNetworkMode)
   // P4.3 自动判断只在当前浏览器执行；首页渲染与书签加载不等待它。
   const autoDetector = useMemo(() => createAutoDetector({ loadTargets: loadNetworkProbeTargets }), [])
@@ -299,6 +301,8 @@ export default function App() {
     setNetworkOpen(true)
   }, [])
   const closeNetwork = useCallback(() => setNetworkOpen(false), [])
+  const openDocker = useCallback(() => setDockerOpen(true), [])
+  const closeDocker = useCallback(() => setDockerOpen(false), [])
   const changeNetworkMode = useCallback((next: NetworkMode) => {
     setNetworkMode(next)
     return persistNetworkMode(next)
@@ -639,6 +643,7 @@ export default function App() {
                 title={collapsed ? item.label : undefined}
                 onClick={() => {
                   if (item.id === 'search') openSearch()
+                  else if (item.id === 'services') openDocker()
                   else if (!active) openNavigation(item.label)
                 }}
               >
@@ -845,6 +850,7 @@ export default function App() {
               onClick={() => {
                 if (item.id === 'account') openAccount()
                 else if (item.id === 'search') openSearch()
+                else if (item.id === 'services') openDocker()
                 else if (!active) openNavigation(item.label)
               }}
             >
@@ -866,6 +872,7 @@ export default function App() {
           onClose={closeNetwork}
         />
       )}
+      {dockerOpen && <DockerSheet isAdmin={isAdmin} onClose={closeDocker} />}
       {searchOpen && <SpotlightSearch bookmarks={bookmarks} addressMode={bookmarkAddress} onClose={closeSearch} />}
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
