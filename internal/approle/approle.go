@@ -147,13 +147,6 @@ func Run(cfg *config.Config, log *slog.Logger) int {
 		cancel()
 	}
 	defer func() {
-		// P5.1 Docker 只读连接：初始化失败或不可用只影响状态展示，不影响启动。
-		if dc, err := dockerclient.New(cfg.DockerAPIURL, cfg.DockerTimeout); err != nil {
-			log.Warn("Docker 只读连接配置无效，Docker 功能显示为未知", slog.String("error", err.Error()), slog.String("code", "DOCKER_CONFIG_INVALID"))
-		} else {
-			app.docker = dc
-		}
-
 		if app.db != nil {
 			_ = app.db.Close()
 		}
