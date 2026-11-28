@@ -131,6 +131,16 @@ export function WifiOffIcon(props: IconProps) {
   )
 }
 
+export function NetworkIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M6.4 6.4a8 8 0 0 0 0 11.2M17.6 6.4a8 8 0 0 1 0 11.2" />
+      <path d="M3.4 3.4a12.2 12.2 0 0 0 0 17.2M20.6 3.4a12.2 12.2 0 0 1 0 17.2" />
+    </Svg>
+  )
+}
+
 export function FolderIcon(props: IconProps) {
   return (
     <Svg {...props}>

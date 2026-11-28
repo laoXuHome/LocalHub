@@ -11,8 +11,15 @@ import {
   updateBookmark,
   uploadBookmarkIcon,
 } from './api'
-import type { AuthStatus, Bookmark, BookmarkInput, CardSize, LayoutDevice, LayoutResponse, Role, ThemeMode } from './types'
+import type { AuthStatus, Bookmark, BookmarkInput, CardSize, LayoutDevice, LayoutResponse, NetworkMode, Role, ThemeMode } from './types'
 import { applyTheme, persistTheme, readTheme, watchSystemTheme } from './theme'
+import {
+  isNetworkMode,
+  networkModeLabel,
+  networkModeStorageKey,
+  persistNetworkMode,
+  readNetworkMode,
+} from './network'
 import { BookmarkCard } from './components/BookmarkCard'
 import { AccountSheet } from './components/AccountSheet'
 import { ThemeSwitcher } from './components/ThemeSwitcher'
@@ -20,6 +27,7 @@ import { Toast, type ToastMessage, type ToastTone } from './components/Toast'
 import { BookmarkDrawer } from './components/BookmarkDrawer'
 import { ConfirmDialog, type ConfirmRequest } from './components/ConfirmDialog'
 import { EditToolbar } from './components/EditToolbar'
+import { NetworkSheet } from './components/NetworkSheet'
 import { SpotlightSearch } from './components/SpotlightSearch'
 import {
   appendEntry,
@@ -41,6 +49,7 @@ import {
   ChevronRightIcon,
   FolderIcon,
   HomeIcon,
+  NetworkIcon,
   PencilIcon,
   PlusIcon,
   RefreshIcon,
@@ -96,6 +105,8 @@ export default function App() {
   const [reloadKey, setReloadKey] = useState(0)
   const [accountOpen, setAccountOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [networkOpen, setNetworkOpen] = useState(false)
+  const [networkMode, setNetworkMode] = useState<NetworkMode>(readNetworkMode)
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('localhub.sidebar') === 'collapsed'
@@ -137,6 +148,16 @@ export default function App() {
     if (themeMode !== 'auto') return
     return watchSystemTheme(() => applyTheme('auto'))
   }, [themeMode])
+
+  // 同一浏览器的标签页共享本机模式；不跨浏览器、不写服务端。
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== networkModeStorageKey) return
+      setNetworkMode(isNetworkMode(event.newValue) ? event.newValue : 'auto')
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   useEffect(() => {
     if (!toast) return
@@ -213,14 +234,26 @@ export default function App() {
 
   const openAccount = useCallback(() => {
     setSearchOpen(false)
+    setNetworkOpen(false)
     setAccountOpen(true)
   }, [])
   const closeAccount = useCallback(() => setAccountOpen(false), [])
   const openSearch = useCallback(() => {
     setAccountOpen(false)
+    setNetworkOpen(false)
     setSearchOpen(true)
   }, [])
   const closeSearch = useCallback(() => setSearchOpen(false), [])
+  const openNetwork = useCallback(() => {
+    setAccountOpen(false)
+    setSearchOpen(false)
+    setNetworkOpen(true)
+  }, [])
+  const closeNetwork = useCallback(() => setNetworkOpen(false), [])
+  const changeNetworkMode = useCallback((next: NetworkMode) => {
+    setNetworkMode(next)
+    return persistNetworkMode(next)
+  }, [])
 
   function openNavigation(label: string) {
     notify(`「${label}」将在后续批次开放`)
@@ -269,6 +302,7 @@ export default function App() {
   const beginEditing = useCallback(() => {
     if (!isAdmin) return
     setSearchOpen(false)
+    setNetworkOpen(false)
     resetEditor(bookmarks, serverLayout)
   }, [isAdmin, bookmarks, serverLayout])
 
@@ -588,6 +622,17 @@ export default function App() {
           </div>
         </div>
         <div className="mobile-actions">
+          {!editing && (
+            <button
+              type="button"
+              className="mobile-network-entry"
+              onClick={openNetwork}
+              aria-label={`网络模式 ${networkModeLabel(networkMode)}，打开网络设置`}
+            >
+              <NetworkIcon size={15} />
+              <strong>{networkModeLabel(networkMode)}</strong>
+            </button>
+          )}
           <ThemeSwitcher mode={themeMode} onChange={changeTheme} compact />
           <button type="button" className="avatar avatar-button" onClick={openAccount} aria-label="打开账户面板">
             {avatarText(auth, currentRole)}
@@ -603,6 +648,18 @@ export default function App() {
               {editing && <span className="heading-mode">{preview ? '预览模式' : '编辑模式'}</span>}
             </div>
             <div className="page-actions">
+              {!editing && (
+                <button
+                  type="button"
+                  className="network-entry"
+                  onClick={openNetwork}
+                  aria-label={`网络模式 ${networkModeLabel(networkMode)}，打开网络设置`}
+                >
+                  <NetworkIcon size={16} />
+                  <span className="network-entry-label">网络</span>
+                  <strong>{networkModeLabel(networkMode)}</strong>
+                </button>
+              )}
               {loadState === 'ready' && !editing && (
                 <button type="button" className="search-entry" onClick={openSearch} aria-label="搜索书签">
                   <SearchIcon size={16} />
@@ -735,6 +792,14 @@ export default function App() {
         })}
       </nav>
 
+      {networkOpen && (
+        <NetworkSheet
+          mode={networkMode}
+          isAdmin={isAdmin}
+          onModeChange={changeNetworkMode}
+          onClose={closeNetwork}
+        />
+      )}
       {searchOpen && <SpotlightSearch bookmarks={bookmarks} onClose={closeSearch} />}
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 

@@ -320,6 +320,10 @@ func (s *server) routes() http.Handler {
 	mux.Handle("DELETE /api/admin/bookmarks/{id}/icon", s.requireAdmin(http.HandlerFunc(s.handleBookmarkIconDelete)))
 	mux.Handle("POST /api/admin/bookmarks/{id}/favicon", s.requireAdmin(http.HandlerFunc(s.handleBookmarkFavicon)))
 
+	// P4.1 网络探测目标配置：仅管理员可读写，不包含任何探测执行。
+	mux.Handle("GET /api/admin/network/targets", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkTargets)))
+	mux.Handle("PUT /api/admin/network/targets", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkTargets)))
+
 	// 其余为公开静态页面（访客可访问），/api/ 下未定义的路径由静态处理器返回 404。
 	mux.Handle("/", s.staticHandler())
 	return mux

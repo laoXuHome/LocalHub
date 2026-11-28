@@ -2671,3 +2671,436 @@ img {
     padding: 22px 16px;
   }
 }
+
+/* ============ P4.1 网络模式与探测目标 ============ */
+
+.network-entry {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 620;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.network-entry:hover {
+  border-color: var(--border-strong);
+  background: var(--card-hover);
+  color: var(--text);
+}
+
+.network-entry strong {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+}
+
+.network-entry-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 560;
+}
+
+.mobile-network-entry {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.mobile-network-entry strong {
+  font-size: 9.5px;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+}
+
+.network-sheet {
+  width: min(500px, 100%);
+}
+
+.network-current {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.network-current-icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.network-current > div {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.network-current strong {
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+}
+
+.network-current span:not(.network-current-icon):not(.network-local-chip) {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.network-local-chip {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+.network-tabs {
+  display: flex;
+  gap: 3px;
+  margin-top: 16px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+}
+
+.network-tabs button {
+  min-height: 32px;
+  flex: 1;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.network-tabs button.is-active {
+  background: var(--surface-solid);
+  color: var(--text);
+  box-shadow: 0 3px 10px rgba(25, 30, 58, 0.08);
+}
+
+.network-section {
+  margin-top: 16px;
+}
+
+.network-mode-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.network-mode-option {
+  display: flex;
+  min-height: 82px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.network-mode-option strong {
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 740;
+  letter-spacing: -0.03em;
+}
+
+.network-mode-option span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.network-mode-option:hover {
+  border-color: var(--border-strong);
+  background: var(--card-hover);
+}
+
+.network-mode-option.is-selected {
+  border-color: rgba(98, 102, 241, 0.42);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px rgba(98, 102, 241, 0.12) inset;
+}
+
+.network-mode-option.is-selected strong {
+  color: var(--accent);
+}
+
+.network-mode-option:focus-visible,
+.network-tabs button:focus-visible,
+.network-entry:focus-visible,
+.mobile-network-entry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.network-footnote {
+  margin: 12px 2px 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.65;
+}
+
+.network-footnote--muted {
+  color: var(--muted);
+  opacity: 0.82;
+}
+
+.network-targets-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.network-targets-loading span {
+  height: 48px;
+  border-radius: 13px;
+  background: var(--surface);
+  animation: network-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes network-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.9; }
+}
+
+.network-targets-error {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface);
+}
+
+.network-targets-error strong {
+  font-size: 13px;
+}
+
+.network-targets-error p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.network-targets-form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.network-target-row {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.network-target-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-strong);
+  cursor: pointer;
+}
+
+.network-target-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.network-target-toggle strong {
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-switch {
+  position: relative;
+  width: 32px;
+  height: 19px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(115, 121, 138, 0.24);
+  transition: background 160ms ease;
+}
+
+.network-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(20, 24, 40, 0.2);
+  content: "";
+  transition: transform 160ms ease;
+}
+
+.network-switch.is-on {
+  background: var(--accent);
+}
+
+.network-switch.is-on::after {
+  transform: translateX(13px);
+}
+
+.network-target-toggle:focus-within .network-switch {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.network-address-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-solid);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.network-address-input::placeholder {
+  color: var(--muted);
+}
+
+.network-address-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.network-address-input:disabled {
+  opacity: 0.62;
+}
+
+.network-save {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.network-guest-note {
+  margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .network-entry {
+    display: none;
+  }
+
+  .network-entry-label {
+    display: none;
+  }
+
+  .network-sheet {
+    width: min(500px, 100%);
+  }
+
+  .network-mode-options {
+    gap: 6px;
+  }
+
+  .network-mode-option {
+    min-height: 78px;
+    padding: 10px;
+  }
+
+  .network-mode-option strong {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 600px) {
+  .network-entry {
+    display: none;
+  }
+
+  .network-mode-options {
+    grid-template-columns: 1fr;
+  }
+
+  .network-mode-option {
+    min-height: 60px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .network-mode-option strong {
+    min-width: 54px;
+    font-size: 16px;
+  }
+
+  .network-mode-option span {
+    font-size: 10.5px;
+  }
+
+  .network-target-row {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .network-target-row .network-address-input {
+    font-size: 16px;
+  }
+
+  .network-sheet {
+    padding: 20px 18px;
+  }
+}

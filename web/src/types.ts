@@ -65,3 +65,20 @@ export type BookmarkInput = {
   folder_path?: string[]
   sort_order?: number
 }
+
+export type NetworkMode = 'auto' | 'lan' | 'wan'
+export type NetworkTargetKey = 'router' | 'bypass_router' | 'nas'
+
+export type NetworkTarget = {
+  key: NetworkTargetKey
+  label: string
+  address: string
+  enabled: boolean
+}
+
+export type NetworkConfig = {
+  targets: NetworkTarget[]
+  updated_at?: string
+}
+
+export type NetworkTargetInput = Pick<NetworkTarget, 'key' | 'address' | 'enabled'>

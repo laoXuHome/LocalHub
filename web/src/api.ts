@@ -1,4 +1,12 @@
-import type { AuthStatus, Bookmark, BookmarkInput, BookmarksResponse, LayoutResponse } from './types'
+import type {
+  AuthStatus,
+  Bookmark,
+  BookmarkInput,
+  BookmarksResponse,
+  LayoutResponse,
+  NetworkConfig,
+  NetworkTargetInput,
+} from './types'
 
 export class APIError extends Error {
   status: number
@@ -101,4 +109,12 @@ export function uploadBookmarkIcon(id: number, file: File): Promise<Bookmark> {
 
 export function refreshFavicon(id: number): Promise<Bookmark | Record<string, unknown>> {
   return postJSON(`/api/admin/bookmarks/${id}/favicon`, {})
+}
+
+export function loadNetworkTargets(signal?: AbortSignal): Promise<NetworkConfig> {
+  return getJSON<NetworkConfig>('/api/admin/network/targets', signal)
+}
+
+export function saveNetworkTargets(targets: NetworkTargetInput[]): Promise<NetworkConfig> {
+  return sendJSON<NetworkConfig>('/api/admin/network/targets', 'PUT', { targets })
 }
