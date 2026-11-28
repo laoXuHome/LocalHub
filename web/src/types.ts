@@ -82,3 +82,37 @@ export type NetworkConfig = {
 }
 
 export type NetworkTargetInput = Pick<NetworkTarget, 'key' | 'address' | 'enabled'>
+
+export type NetworkProbeState =
+  | 'success'
+  | 'http_error'
+  | 'timeout'
+  | 'connection_failed'
+  | 'probe_error'
+  | 'not_probed'
+  | 'disabled'
+
+export type NetworkProbeResult = {
+  key: NetworkTargetKey
+  label: string
+  address?: string
+  enabled: boolean
+  status: NetworkProbeState
+  http_status: number
+  latency_ms: number
+  checked_at?: string
+  failure_reason?: string
+}
+
+export type NetworkProbeStatus = {
+  targets: NetworkProbeResult[]
+  updated_at?: string
+}
+
+export type NetworkProbeRun = {
+  id: string
+  status: 'running' | 'completed'
+  started_at: string
+  finished_at?: string
+  results: NetworkProbeResult[]
+}

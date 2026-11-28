@@ -22,6 +22,7 @@ import (
 	"github.com/laoXuHome/LocalHub/internal/db"
 	"github.com/laoXuHome/LocalHub/internal/favicon"
 	"github.com/laoXuHome/LocalHub/internal/icon"
+	"github.com/laoXuHome/LocalHub/internal/probe"
 	"github.com/laoXuHome/LocalHub/internal/static"
 )
 
@@ -64,6 +65,9 @@ type server struct {
 	icons       *icon.Store
 	favicon     faviconFetcher
 	autoFavicon bool
+
+	// P4.2 网络探测：手动触发、单执行记录与结果持久化。
+	probe *probe.Manager
 }
 
 // Run 执行 app 角色：写自检、打开数据库并迁移、提供 /health 与静态页面。
@@ -146,6 +150,7 @@ func Run(cfg *config.Config, log *slog.Logger) int {
 
 	if app.db != nil {
 		app.auth = newAuthState(app)
+		app.probe = probe.NewManager(app.db)
 		app.bootstrapAdmin()
 		go app.sessionJanitor()
 	} else {
@@ -323,6 +328,12 @@ func (s *server) routes() http.Handler {
 	// P4.1 网络探测目标配置：仅管理员可读写，不包含任何探测执行。
 	mux.Handle("GET /api/admin/network/targets", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkTargets)))
 	mux.Handle("PUT /api/admin/network/targets", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkTargets)))
+
+	// P4.2 HTTP 探测：公开仅暴露脱敏状态；触发、完整结果与单次执行记录仅管理员。
+	mux.HandleFunc("GET /api/network/status", s.handlePublicNetworkStatus)
+	mux.Handle("GET /api/admin/network/results", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkResults)))
+	mux.Handle("POST /api/admin/network/probe", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkProbe)))
+	mux.Handle("GET /api/admin/network/probes/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkProbeRun)))
 
 	// 其余为公开静态页面（访客可访问），/api/ 下未定义的路径由静态处理器返回 404。
 	mux.Handle("/", s.staticHandler())

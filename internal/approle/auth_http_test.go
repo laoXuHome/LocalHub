@@ -16,6 +16,7 @@ import (
 	"github.com/laoXuHome/LocalHub/internal/config"
 	"github.com/laoXuHome/LocalHub/internal/db"
 	"github.com/laoXuHome/LocalHub/internal/icon"
+	"github.com/laoXuHome/LocalHub/internal/probe"
 )
 
 func testConfig(t *testing.T, mutate func(*config.Config)) *config.Config {
@@ -65,6 +66,7 @@ func newTestServer(t *testing.T, mutate func(*config.Config)) (*server, *httptes
 		s.icons = st
 	}
 	s.auth = newAuthState(s)
+	s.probe = probe.NewManager(database)
 	ts := httptest.NewServer(s.logMiddleware(s.routes()))
 	t.Cleanup(ts.Close)
 	return s, ts

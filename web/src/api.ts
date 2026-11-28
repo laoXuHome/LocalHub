@@ -5,6 +5,8 @@ import type {
   BookmarksResponse,
   LayoutResponse,
   NetworkConfig,
+  NetworkProbeRun,
+  NetworkProbeStatus,
   NetworkTargetInput,
 } from './types'
 
@@ -117,4 +119,20 @@ export function loadNetworkTargets(signal?: AbortSignal): Promise<NetworkConfig>
 
 export function saveNetworkTargets(targets: NetworkTargetInput[]): Promise<NetworkConfig> {
   return sendJSON<NetworkConfig>('/api/admin/network/targets', 'PUT', { targets })
+}
+
+export function loadNetworkStatus(signal?: AbortSignal): Promise<NetworkProbeStatus> {
+  return getJSON<NetworkProbeStatus>('/api/network/status', signal)
+}
+
+export function loadNetworkResults(signal?: AbortSignal): Promise<NetworkProbeStatus> {
+  return getJSON<NetworkProbeStatus>('/api/admin/network/results', signal)
+}
+
+export function triggerNetworkProbe(): Promise<NetworkProbeRun> {
+  return postJSON<NetworkProbeRun>('/api/admin/network/probe', {})
+}
+
+export function loadNetworkProbeRun(id: string, signal?: AbortSignal): Promise<NetworkProbeRun> {
+  return getJSON<NetworkProbeRun>(`/api/admin/network/probes/${encodeURIComponent(id)}`, signal)
 }

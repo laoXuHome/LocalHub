@@ -9,7 +9,7 @@ import (
 )
 
 // handleAdminNetworkTargets 仅管理员可读写探测目标配置。
-// P4.1 只持久化配置，不做任何 HTTP/Ping 探测。
+// 配置只落入 P4.1 的 network_targets；P4.2 的真实探测结果保存在独立表。
 func (s *server) handleAdminNetworkTargets(w http.ResponseWriter, r *http.Request) {
 	if s.db == nil {
 		writeError(w, http.StatusServiceUnavailable, "database_unavailable", "数据库不可用")
@@ -38,6 +38,7 @@ func (s *server) handleAdminNetworkTargets(w http.ResponseWriter, r *http.Reques
 			writeError(w, http.StatusInternalServerError, "network_config_failed", err.Error())
 			return
 		}
+		s.dropDisabledProbeResults(r, cfg)
 		writeJSON(w, http.StatusOK, cfg)
 	default:
 		w.Header().Set("Allow", "GET, PUT")

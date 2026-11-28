@@ -1,8 +1,25 @@
-import { useEffect, useRef, useState } from 'react'
-import { APIError, loadNetworkTargets, saveNetworkTargets } from '../api'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  APIError,
+  loadNetworkProbeRun,
+  loadNetworkResults,
+  loadNetworkStatus,
+  loadNetworkTargets,
+  saveNetworkTargets,
+  triggerNetworkProbe,
+} from '../api'
+import { formatProbeCheckedAt, formatProbeLatency, probeHTTPLabel, probeStateLabel, probeStateTone } from '../probe'
 import { networkModeDescription, networkModeLabel, networkModes } from '../network'
-import type { NetworkConfig, NetworkMode, NetworkTarget, NetworkTargetKey } from '../types'
-import { CloseIcon, NetworkIcon, ShieldIcon } from './Icons'
+import type {
+  NetworkConfig,
+  NetworkMode,
+  NetworkProbeResult,
+  NetworkProbeRun,
+  NetworkProbeStatus,
+  NetworkTarget,
+  NetworkTargetKey,
+} from '../types'
+import { CloseIcon, NetworkIcon, RefreshIcon, ShieldIcon } from './Icons'
 
 type Props = {
   mode: NetworkMode
@@ -15,6 +32,7 @@ function messageFor(error: unknown): string {
   if (error instanceof APIError) {
     if (error.status === 401 || error.status === 403) return '管理会话已失效，请重新登录后再保存'
     if (error.status === 503) return '服务暂时不可用，请稍后重试'
+    if (error.status === 429) return '操作过于频繁，请稍后再试'
     return error.message || '请求失败'
   }
   return '网络异常，请稍后重试'
@@ -27,13 +45,124 @@ function updatedLabel(value?: string): string {
   return date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+function ProbeResults({
+  isAdmin,
+  status,
+  loading,
+  error,
+  run,
+  starting,
+  notice,
+  onProbe,
+}: {
+  isAdmin: boolean
+  status: NetworkProbeStatus | null
+  loading: boolean
+  error: string
+  run: NetworkProbeRun | null
+  starting: boolean
+  notice: string
+  onProbe: () => void
+}) {
+  const running = starting || run?.status === 'running'
+  return (
+    <section className="network-section network-probe-section" aria-label="网络探测结果">
+      <div className="network-probe-head">
+        <div>
+          <strong>探测结果</strong>
+          <span>最近一次手动探测，不代表当前实时可达。</span>
+        </div>
+        {isAdmin && (
+          <button
+            type="button"
+            className="primary-button network-probe-button"
+            onClick={onProbe}
+            disabled={running}
+          >
+            <RefreshIcon size={16} />
+            {running ? '正在探测…' : '手动探测'}
+          </button>
+        )}
+      </div>
+
+      {running && (
+        <div className="network-probe-running" role="status" aria-live="polite">
+          <span className="network-probe-spinner" aria-hidden="true" />
+          正在并行探测三个目标，请稍候…
+        </div>
+      )}
+      {loading && (
+        <div className="network-targets-loading" aria-busy="true" aria-label="正在读取探测结果">
+          <span />
+          <span />
+          <span />
+        </div>
+      )}
+      {!loading && error && (
+        <div className="network-targets-error" role="alert">
+          <strong>无法读取探测结果</strong>
+          <p>{error}</p>
+        </div>
+      )}
+      {!loading && !error && status && (
+        <div className="network-probe-list">
+          {status.targets.map((result) => (
+            <ProbeRow result={result} isAdmin={isAdmin} key={result.key} />
+          ))}
+        </div>
+      )}
+      {notice && <p className="form-message form-message--ok" role="status">{notice}</p>}
+      {!isAdmin && (
+        <p className="network-footnote network-footnote--muted">
+          访客只能看到公开状态，不显示目标地址或内部错误详情。
+        </p>
+      )}
+    </section>
+  )
+}
+
+function ProbeRow({ result, isAdmin }: { result: NetworkProbeResult; isAdmin: boolean }) {
+  const tone = probeStateTone(result.status)
+  const latency = result.status === 'success' || tone === 'failure' ? formatProbeLatency(result.latency_ms) : '—'
+  const http = probeHTTPLabel(result.http_status)
+  return (
+    <article className="network-probe-row" data-state={result.status}>
+      <span className="network-status-dot" data-tone={tone} aria-hidden="true" />
+      <div className="network-probe-copy">
+        <strong>{result.label}</strong>
+        <span>
+          {probeStateLabel(result.status)}
+          {http ? ` · ${http}` : ''}
+          {latency !== '—' ? ` · ${latency}` : ''}
+        </span>
+        {isAdmin && result.address && <span className="network-probe-address">{result.address}</span>}
+        {isAdmin && result.failure_reason && tone === 'failure' && (
+          <span className="network-probe-reason" title={result.failure_reason}>
+            {result.failure_reason}
+          </span>
+        )}
+      </div>
+      <time className="network-probe-time" dateTime={result.checked_at || undefined}>
+        {formatProbeCheckedAt(result.checked_at)}
+      </time>
+    </article>
+  )
+}
+
 export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
-  const [tab, setTab] = useState<'mode' | 'targets'>('mode')
+  const [tab, setTab] = useState<'mode' | 'results' | 'targets'>('mode')
   const [config, setConfig] = useState<NetworkConfig | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [status, setStatus] = useState<NetworkProbeStatus | null>(null)
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [statusError, setStatusError] = useState('')
+  const [probeError, setProbeError] = useState('')
+  const [run, setRun] = useState<NetworkProbeRun | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [probeNotice, setProbeNotice] = useState('')
   const firstMode = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -51,6 +180,30 @@ export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
     }
   }, [onClose])
 
+  const refreshProbe = useCallback(
+    async (signal?: AbortSignal, showLoading = true) => {
+      if (showLoading) setStatusLoading(true)
+      try {
+        const value = isAdmin ? await loadNetworkResults(signal) : await loadNetworkStatus(signal)
+        if (signal?.aborted) return
+        setStatus(value)
+        setStatusError('')
+      } catch (err: unknown) {
+        if (signal?.aborted) return
+        setStatusError(messageFor(err))
+      } finally {
+        if (!signal?.aborted) setStatusLoading(false)
+      }
+    },
+    [isAdmin],
+  )
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void refreshProbe(controller.signal)
+    return () => controller.abort()
+  }, [refreshProbe])
+
   useEffect(() => {
     if (!isAdmin) return
     const controller = new AbortController()
@@ -67,6 +220,49 @@ export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
       })
     return () => controller.abort()
   }, [isAdmin])
+
+  // 触发后轮询单次执行记录；完成后刷新最新结果。
+  useEffect(() => {
+    if (!run || run.status !== 'running') return
+    let cancelled = false
+    let timer = 0
+    const startedAt = Date.now()
+    const controller = new AbortController()
+    const poll = async () => {
+      if (Date.now() - startedAt > 15000) {
+        if (!cancelled) {
+          setProbeError('探测状态读取超时，请重新打开面板查看结果')
+          setStarting(false)
+          setRun(null)
+        }
+        return
+      }
+      try {
+        const next = await loadNetworkProbeRun(run.id, controller.signal)
+        if (cancelled) return
+        setRun(next)
+        if (next.status === 'completed') {
+          setStarting(false)
+          const successes = next.results.filter((item) => item.status === 'success').length
+          setProbeNotice(`探测完成：${successes}/${next.results.length} 个目标成功`)
+          void refreshProbe(undefined, false)
+          return
+        }
+        timer = window.setTimeout(poll, 700)
+      } catch (err: unknown) {
+        if (cancelled) return
+        setProbeError(messageFor(err))
+        setStarting(false)
+        setRun(null)
+      }
+    }
+    timer = window.setTimeout(poll, 300)
+    return () => {
+      cancelled = true
+      controller.abort()
+      window.clearTimeout(timer)
+    }
+  }, [run?.id, run?.status, refreshProbe])
 
   function chooseMode(next: NetworkMode) {
     const stored = onModeChange(next)
@@ -117,6 +313,7 @@ export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
       )
       setConfig(saved)
       setNotice('探测目标已保存')
+      void refreshProbe(undefined, false)
     } catch (err) {
       setError(messageFor(err))
     } finally {
@@ -124,7 +321,27 @@ export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
     }
   }
 
+  async function startProbe() {
+    if (starting || run?.status === 'running') return
+    setStarting(true)
+    setProbeError('')
+    setProbeNotice('')
+    setTab('results')
+    try {
+      const started = await triggerNetworkProbe()
+      setRun(started)
+    } catch (err: unknown) {
+      setStarting(false)
+      if (err instanceof APIError && err.status === 409) {
+        setProbeError('已有探测正在进行，请等待本次完成后再试')
+      } else {
+        setProbeError(messageFor(err))
+      }
+    }
+  }
+
   const updated = updatedLabel(config?.updated_at)
+  const running = starting || run?.status === 'running'
 
   return (
     <div className="sheet-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -165,6 +382,15 @@ export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
             <button
               type="button"
               role="tab"
+              aria-selected={tab === 'results'}
+              className={tab === 'results' ? 'is-active' : ''}
+              onClick={() => setTab('results')}
+            >
+              探测结果
+            </button>
+            <button
+              type="button"
+              role="tab"
               aria-selected={tab === 'targets'}
               className={tab === 'targets' ? 'is-active' : ''}
               onClick={() => setTab('targets')}
@@ -195,8 +421,45 @@ export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
             <p className="network-footnote">
               手动 LAN / WAN 优先于自动判断。模式仅保存在当前浏览器，不会同步到其他设备；切回 AUTO 后，后续自动探测才可重新接管。
             </p>
-            <p className="network-footnote network-footnote--muted">P4.1 不执行实际探测，AUTO 当前表示等待后续自动判断。</p>
+            <p className="network-footnote network-footnote--muted">
+              P4.2 支持管理员手动 HTTP 探测；AUTO 仍表示等待后续自动判断，不会自行推断或切换 LAN / WAN。
+            </p>
           </section>
+        )}
+
+        {isAdmin && tab === 'results' && (
+          <>
+            {probeError && <p className="form-message form-message--error" role="alert">{probeError}</p>}
+            <ProbeResults
+              isAdmin
+              status={status}
+              loading={statusLoading}
+              error={statusError}
+              run={run}
+              starting={starting}
+              notice={probeNotice}
+              onProbe={startProbe}
+            />
+          </>
+        )}
+
+        {!isAdmin && tab === 'mode' && (
+          <>
+            <ProbeResults
+              isAdmin={false}
+              status={status}
+              loading={statusLoading}
+              error={statusError}
+              run={null}
+              starting={false}
+              notice=""
+              onProbe={() => undefined}
+            />
+            <div className="guest-note network-guest-note">
+              <ShieldIcon size={19} />
+              <p>访客可以切换当前浏览器的网络模式，但不能查看探测目标配置，也不能触发探测。</p>
+            </div>
+          </>
         )}
 
         {tab === 'targets' && isAdmin && (
@@ -253,15 +516,11 @@ export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
           </section>
         )}
 
-        {!isAdmin && (
-          <div className="guest-note network-guest-note">
-            <ShieldIcon size={19} />
-            <p>访客可以切换当前浏览器的网络模式，但不能查看或修改探测目标；探测目标配置仅管理员可用。</p>
-          </div>
-        )}
-
         {tab === 'mode' && notice && <p className="form-message form-message--ok">{notice}</p>}
         {tab === 'mode' && error && <p className="form-message form-message--error" role="alert">{error}</p>}
+        {running && tab !== 'results' && isAdmin && (
+          <p className="network-footnote network-footnote--muted" role="status">探测正在后台执行…</p>
+        )}
       </div>
     </div>
   )
