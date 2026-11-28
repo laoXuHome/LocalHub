@@ -93,6 +93,14 @@ def setup():
     except urllib.error.HTTPError as exc:
         assert exc.code == 401, exc.code
 
+    admin_status, admin_links = call("GET", "/api/admin/docker/bookmark-links")
+    assert admin_status == 200 and admin_links["read_only"] is True, admin_links
+    (OUT / "permission-check.txt").write_text(
+        "guest GET /api/admin/docker/bookmark-links -> 401\n"
+        f"admin GET /api/admin/docker/bookmark-links -> {admin_status}\n"
+        "admin read_only -> true\n"
+    )
+
     status, containers = call("GET", "/api/admin/docker/containers")
     assert status == 200 and containers["status"] == "connected", containers
     dump("containers-before.json", containers)
