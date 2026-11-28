@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # ---------- 前端构建 ----------
-FROM node:22-alpine AS web
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -8,7 +8,7 @@ COPY web/ ./
 RUN npm run build
 
 # ---------- Go 构建（静态二进制，无 CGO） ----------
-FROM golang:1.23-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS build
 ARG TARGETARCH
 ARG VERSION=dev
 ARG COMMIT=unknown
