@@ -1,0 +1,60 @@
+P3.3 浏览器交互验收记录
+
+时间: 2026-11-28 (Asia/Shanghai)
+环境: headless Chromium / Browser Use, 本地 LocalHub 真实 SQLite 数据
+桌面视口: 1280×900
+移动视口: 390×844 (DPR 1)
+角色: 访客（未登录）；管理员权限另见 permission-checks.txt
+
+1. 搜索入口
+- 桌面页头“搜索”按钮可打开浮层。
+- 桌面左侧导航“搜索”可打开浮层。
+- 移动端底部导航“搜索”可打开浮层。
+- 浮层打开后首页背景仍可见；实际焦点元素为 `.spotlight-input`（document.activeElement.className）。
+
+2. 搜索能力（实时 DOM 结果）
+- 名称中文「路由」 => OpenWrt 路由
+- 名称英文大小写「jELLY」 => Jellyfin
+- 描述「streaming」 => Jellyfin
+- 描述「家庭文件」 => NAS 管理
+- URL「192.168.1.1」 => OpenWrt 路由, Proxmox VE
+- URL「example」 => NAS 管理, Jellyfin, Vaultwarden, 博客
+- 部分匹配「OpenW」 => OpenWrt 路由
+- 项目验收书签「P3.3」 => P3.3 搜索验收
+- 无匹配「zzzz-no-match」 => 0 个结果，显示“没有找到匹配的书签”
+- 清空按钮 => 输入框清空，恢复“搜索全部书签”初始状态
+
+3. 权限隔离的浏览器观察
+- 访客输入「私藏」 => 0 个结果，显示空状态；公开列表不含私藏/认证书签。
+- 对应截图 docs/p3.3/desktop-guest-private-empty.png。
+
+4. 关闭与键盘
+- Escape 关闭浮层，关闭后 `.spotlight-panel` 不存在。
+- 点击浮层外坐标 (900/1000, 800/1000) 关闭，关闭后 `.spotlight-panel` 不存在。
+- 输入「example.com」得到 4 个结果；按 ArrowDown 一次后第 2 项 Jellyfin 为 `aria-selected=true`（截图 desktop-search-keyboard.png）；再按一次后第 3 项 Vaultwarden 为选中态。
+- 从 Vaultwarden 按 Enter 打开当前选中项；浏览器新建标签 URL `https://vault.example.com/`，符合书签 open_mode=new_tab；LocalHub 原标签保留且浮层关闭。
+- 移动端点击 Jellyfin 结果，新标签 URL `https://media.example.com/jellyfin`，符合 open_mode=new_tab；原 LocalHub 标签保留且浮层关闭。
+
+5. 主题与布局
+- AUTO / LIGHT / DARK 三种主题均实际截图，浮层、输入、结果和空状态可读。
+- 搜索前后调用 `/api/bookmarks/layout` 的桌面/移动载荷一致；规范化 SHA-256 均为
+  3e48dbf4067e0308e2aa6a379566be71df1ff08d2d4596bffd62fbdec85d64b2。
+- 首页刷新后桌面/移动布局与搜索前一致。
+
+6. 编辑模式
+- 本次浏览器会话为访客，未进入管理员编辑态，未做管理员编辑态下的浏览器截图。
+- 代码路径：搜索浮层只读取 `bookmarks`（已保存的可见书签）并渲染独立浮层，不写 drafts/layouts/serverLayout，不调用任何保存接口；打开搜索不会 setEditing，关闭搜索也不会改写编辑状态。管理员“编辑首页”入口在浮层打开时被遮挡；进入编辑会先关闭浮层。
+- 因此本次可确认搜索不会主动发起布局写入；管理员编辑态的实机组合操作仍列为未完成验证项。
+
+截图清单:
+- desktop-home-search-entry.png
+- desktop-search-initial.png
+- desktop-search-results-auto.png
+- desktop-search-results-light.png
+- desktop-search-results-dark.png
+- desktop-search-keyboard.png
+- desktop-search-no-result.png
+- desktop-guest-private-empty.png
+- mobile-home.png
+- mobile-search-initial.png
+- mobile-search-results.png

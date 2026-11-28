@@ -1,0 +1,111 @@
+P3.3 权限隔离验证
+时间: 2026-11-28T08:20:50+08:00
+环境: 本地 SQLite schema 6, 后端 127.0.0.1:11030, 前端 127.0.0.1:5173
+
+1) 管理员 GET /api/bookmarks（已登录，后端按权限过滤 enabled）
+{
+  "role": "admin",
+  "total": 14,
+  "names": [
+    "NAS 管理",
+    "Jellyfin",
+    "OpenWrt 路由",
+    "Immich 相册",
+    "Home Assistant",
+    "Vaultwarden",
+    "Gitea",
+    "qBittorrent",
+    "博客",
+    "私藏笔记",
+    "财务台账",
+    "Paperless-ngx",
+    "Proxmox VE",
+    "P3.3 搜索验收"
+  ],
+  "private_ids": [
+    10
+  ],
+  "authenticated_ids": [
+    11
+  ]
+}
+
+2) 访客 GET /api/bookmarks（无会话）
+{
+  "role": "guest",
+  "total": 12,
+  "names": [
+    "NAS 管理",
+    "Jellyfin",
+    "OpenWrt 路由",
+    "Immich 相册",
+    "Home Assistant",
+    "Vaultwarden",
+    "Gitea",
+    "qBittorrent",
+    "博客",
+    "Paperless-ngx",
+    "Proxmox VE",
+    "P3.3 搜索验收"
+  ]
+}
+
+3) 访客直接读取私密/认证书签，统一 404（不泄露存在性）
+GET /api/bookmarks/10 -> HTTP 404 body={"error":"not_found","message":"书签不存在"}
+GET /api/bookmarks/11 -> HTTP 404 body={"error":"not_found","message":"书签不存在"}
+管理员读取同一私密书签 -> HTTP 200 body={"created_at":"2026-11-28T00:09:04Z","description":"仅管理员可见的私人记录","docker_container":"","effective_visibility":"private","enabled":true,"folder_path":[],"has_icon":false,"icon_type":"none","icon_value":"","id":10,"lan_url":"http://192.168.1.20:9000","name":"私藏笔记","open_mode":"new_tab","sort_order":9,"updated_at":"2026-11-28T00:09:04Z","visibility":"private","wan_url":""}
+
+4) 禁用书签 id=14 不在公开列表；管理员公开列表也不返回（首页搜索只使用 /api/bookmarks）
+[]
+
+5) 未登录调用管理员布局接口仍为 401，搜索未新增或放宽任何管理员接口
+HTTP/1.1 401 Unauthorized
+Cache-Control: no-store
+Content-Type: application/json; charset=utf-8
+Referrer-Policy: same-origin
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Date: Sat, 28 Nov 2026 00:20:50 GMT
+Content-Length: 59
+
+{"error":"unauthorized","message":"需要管理员登录"}
+
+6) 搜索前后布局载荷一致（规范化去除 position 后 SHA-256 相同）
+初始提交载荷: 3e48dbf4067e0308e2aa6a379566be71df1ff08d2d4596bffd62fbdec85d64b2
+搜索后读取载荷: 3e48dbf4067e0308e2aa6a379566be71df1ff08d2d4596bffd62fbdec85d64b2
+
+7) 访客布局只返回公开且启用的书签 ID
+{
+  "desktop_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    12,
+    13,
+    15
+  ],
+  "mobile_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    12,
+    13,
+    15
+  ]
+}
+
+8) 浏览器隔离观察
+访客在搜索浮层输入「私藏」，结果数 0，显示“没有找到匹配的书签”。
+对应截图: docs/p3.3/desktop-guest-private-empty.png
