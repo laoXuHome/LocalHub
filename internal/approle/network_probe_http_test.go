@@ -172,3 +172,45 @@ func (p *probeStub) callCount() int {
 	defer p.mu.Unlock()
 	return len(p.calls)
 }
+
+func TestPublicNetworkProbeTargetsMinimal(t *testing.T) {
+	s, ts := newTestServer(t, nil)
+
+	first := do(t, ts, "GET", "/api/network/targets", "", "", nil)
+	if first.code != http.StatusOK {
+		t.Fatalf("访客应能读取最小启用目标：%d body=%s", first.code, first.body)
+	}
+	body := string(first.body)
+	if !strings.Contains(body, `"address":"router.local"`) {
+		t.Fatalf("缺少启用的主路由目标：%s", body)
+	}
+	for _, leaked := range []string{"bypass_router", `"nas"`, "主路由器", "enabled", "updated_at", "failure_reason"} {
+		if strings.Contains(body, leaked) {
+			t.Fatalf("最小目标接口泄露 %q：%s", leaked, body)
+		}
+	}
+	if r := do(t, ts, "POST", "/api/network/targets", `{"targets":[]}`, "", nil); r.code != http.StatusNotFound && r.code != http.StatusMethodNotAllowed {
+		t.Fatalf("公开目标接口不能写入，got %d body=%s", r.code, r.body)
+	}
+
+	ck := adminCookie(t, ts, s)
+	cfg := `{"targets":[
+		{"key":"router","address":"10.30.0.1","enabled":true},
+		{"key":"bypass_router","address":"10.30.0.2","enabled":true},
+		{"key":"nas","address":"10.30.0.3","enabled":false}]}`
+	if r := do(t, ts, "PUT", "/api/admin/network/targets", cfg, ck, nil); r.code != http.StatusOK {
+		t.Fatalf("保存目标失败：%d body=%s", r.code, r.body)
+	}
+	second := do(t, ts, "GET", "/api/network/targets", "", "", nil)
+	if second.code != http.StatusOK {
+		t.Fatalf("读取最小目标失败：%d", second.code)
+	}
+	for _, want := range []string{`"key":"router"`, `"address":"10.30.0.1"`, `"key":"bypass_router"`, `"address":"10.30.0.2"`} {
+		if !strings.Contains(string(second.body), want) {
+			t.Fatalf("缺少启用目标 %s：%s", want, second.body)
+		}
+	}
+	if strings.Contains(string(second.body), "10.30.0.3") || strings.Contains(string(second.body), `"enabled"`) {
+		t.Fatalf("禁用目标不应出现在最小配置：%s", second.body)
+	}
+}

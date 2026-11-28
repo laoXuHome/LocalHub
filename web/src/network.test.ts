@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   effectiveNetworkMode,
   isNetworkMode,
+  networkEntryState,
   networkModeLabel,
   networkModeStorageKey,
   persistNetworkMode,
@@ -65,5 +66,15 @@ describe('network mode preference', () => {
     expect(networkModeLabel('auto')).toBe('AUTO')
     expect(networkModeLabel('lan')).toBe('LAN')
     expect(networkModeLabel('wan')).toBe('WAN')
+  })
+
+  it('shows AUTO detection states while keeping manual LAN/WAN highest priority', () => {
+    expect(networkEntryState('auto', 'lan', false)).toMatchObject({ label: 'LAN', tone: 'lan', preference: 'auto' })
+    expect(networkEntryState('auto', 'wan', false)).toMatchObject({ label: 'WAN', tone: 'wan', preference: 'auto' })
+    expect(networkEntryState('auto', 'unknown', false)).toMatchObject({ label: 'UNKNOWN', tone: 'unknown' })
+    expect(networkEntryState('auto', null, true)).toMatchObject({ label: '判断中', tone: 'probing' })
+    expect(networkEntryState('auto', null, false)).toMatchObject({ label: 'AUTO', tone: 'unknown' })
+    expect(networkEntryState('lan', 'wan', false)).toMatchObject({ label: 'LAN', tone: 'lan', detected: null })
+    expect(networkEntryState('wan', 'lan', false)).toMatchObject({ label: 'WAN', tone: 'wan', detected: null })
   })
 })

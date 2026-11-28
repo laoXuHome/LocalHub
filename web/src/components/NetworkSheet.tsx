@@ -9,7 +9,7 @@ import {
   triggerNetworkProbe,
 } from '../api'
 import { formatProbeCheckedAt, formatProbeLatency, probeHTTPLabel, probeStateLabel, probeStateTone } from '../probe'
-import { networkModeDescription, networkModeLabel, networkModes } from '../network'
+import { autoReasonText, autoStatusText, networkEntryState, networkModeDescription, networkModeLabel, networkModes } from '../network'
 import type {
   NetworkConfig,
   NetworkMode,
@@ -19,11 +19,15 @@ import type {
   NetworkTarget,
   NetworkTargetKey,
 } from '../types'
+import type { AutoDetectionResult } from '../autodetect'
 import { CloseIcon, NetworkIcon, RefreshIcon, ShieldIcon } from './Icons'
 
 type Props = {
   mode: NetworkMode
   isAdmin: boolean
+  autoPhase: 'idle' | 'probing' | 'checked'
+  autoResult: AutoDetectionResult | null
+  onRecheck: () => Promise<void> | void
   onModeChange: (mode: NetworkMode) => boolean
   onClose: () => void
 }
@@ -149,7 +153,8 @@ function ProbeRow({ result, isAdmin }: { result: NetworkProbeResult; isAdmin: bo
   )
 }
 
-export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
+export function NetworkSheet({ mode, isAdmin, autoPhase, autoResult, onRecheck, onModeChange, onClose }: Props) {
+  const autoView = networkEntryState(mode, autoResult?.status ?? null, autoPhase === 'probing')
   const [tab, setTab] = useState<'mode' | 'results' | 'targets'>('mode')
   const [config, setConfig] = useState<NetworkConfig | null>(null)
   const [loading, setLoading] = useState(false)
@@ -313,6 +318,7 @@ export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
       )
       setConfig(saved)
       setNotice('探测目标已保存')
+      if (mode === 'auto') void onRecheck()
       void refreshProbe(undefined, false)
     } catch (err) {
       setError(messageFor(err))
@@ -357,14 +363,23 @@ export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
           </button>
         </header>
 
-        <div className="network-current">
+        <div className="network-current" data-tone={mode === 'auto' ? autoView.tone : mode}>
           <span className="network-current-icon" aria-hidden="true">
             <NetworkIcon size={20} />
           </span>
           <div>
             <strong>{networkModeLabel(mode)}</strong>
-            <span>{networkModeDescription(mode)}</span>
+            <span>
+              {mode !== 'auto'
+                ? networkModeDescription(mode)
+                : autoPhase === 'probing'
+                  ? '正在判断当前网络…'
+                  : autoResult
+                    ? `${autoStatusText(autoResult.status)} · ${autoReasonText(autoResult.reason)}`
+                    : '尚未完成自动判断'}
+            </span>
           </div>
+          <span className={`network-state-dot network-state-dot--${autoView.tone}`} aria-hidden="true" />
           <span className="network-local-chip">本机</span>
         </div>
 
@@ -418,11 +433,54 @@ export function NetworkSheet({ mode, isAdmin, onModeChange, onClose }: Props) {
                 </button>
               ))}
             </div>
+            <section className="network-auto-card" aria-label="自动网络判断">
+              <div className="network-auto-head">
+                <div>
+                  <strong>自动判断</strong>
+                  <span>在当前浏览器执行</span>
+                </div>
+                <span className={`network-state-dot network-state-dot--${autoView.tone}`} aria-hidden="true" />
+              </div>
+              <div className="network-auto-result" aria-live="polite">
+                <strong className={`network-state-text network-state-text--${autoView.tone}`}>
+                  {autoPhase === 'probing' ? '判断中' : autoView.label}
+                </strong>
+                <span>
+                  {mode !== 'auto'
+                    ? `当前为手动 ${networkModeLabel(mode)}，自动判断不会覆盖。`
+                    : autoPhase === 'probing'
+                      ? '首轮 800ms，必要时第二轮 500ms。'
+                      : autoResult
+                        ? `${autoStatusText(autoResult.status)} · ${autoReasonText(autoResult.reason)}`
+                        : '尚未判断。'}
+                </span>
+              </div>
+              {mode === 'auto' && autoResult && (
+                <p className="network-footnote network-footnote--muted">
+                  最近判断：<time dateTime={autoResult.checkedAt}>{formatProbeCheckedAt(autoResult.checkedAt)}</time>
+                  {autoResult.rounds > 0 && ` · ${autoResult.rounds} 轮`}
+                </p>
+              )}
+              {mode === 'auto' && (
+                <button
+                  type="button"
+                  className="quiet-button network-auto-recheck"
+                  onClick={() => void onRecheck()}
+                  disabled={autoPhase === 'probing'}
+                >
+                  <RefreshIcon size={14} />
+                  {autoPhase === 'probing' ? '判断中…' : '重新判断网络'}
+                </button>
+              )}
+              <p className="network-footnote network-footnote--muted">
+                只使用已启用的主路由、旁路由、NAS 做 HTTP/HTTPS 探测；不使用 Ping、不按 IP 子网推断，也不读取 NAS 后端网络状态。
+              </p>
+            </section>
             <p className="network-footnote">
-              手动 LAN / WAN 优先于自动判断。模式仅保存在当前浏览器，不会同步到其他设备；切回 AUTO 后，后续自动探测才可重新接管。
+              手动 LAN / WAN 优先于自动判断。模式仅保存在当前浏览器，不会同步到其他设备；切回 AUTO 后，自动判断才重新接管。
             </p>
             <p className="network-footnote network-footnote--muted">
-              P4.2 支持管理员手动 HTTP 探测；AUTO 仍表示等待后续自动判断，不会自行推断或切换 LAN / WAN。
+              P4.2 的管理员手动 HTTP 探测仍保留在「探测结果」中，其语义不变，与本次自动判断相互独立。
             </p>
           </section>
         )}

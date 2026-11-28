@@ -3300,3 +3300,170 @@ img {
     padding: 20px 18px;
   }
 }
+
+/* ============ P4.3 AUTO 自动网络判断 ============ */
+
+.network-state-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #9ca3af;
+}
+
+.network-state-dot--lan {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
+}
+
+.network-state-dot--wan {
+  background: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.network-state-dot--unknown {
+  background: #9ca3af;
+}
+
+.network-state-dot--probing {
+  background: #9ca3af;
+  animation: network-dot-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes network-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.86);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+.network-state-text--lan {
+  background: rgba(22, 163, 74, 0.12) !important;
+  color: #16a34a !important;
+}
+
+.network-state-text--wan {
+  background: rgba(37, 99, 235, 0.12) !important;
+  color: #2563eb !important;
+}
+
+.network-state-text--unknown {
+  background: rgba(156, 163, 175, 0.16) !important;
+  color: #9ca3af !important;
+}
+
+.network-state-text--probing {
+  background: rgba(156, 163, 175, 0.16) !important;
+  color: #9ca3af !important;
+}
+
+.network-entry-auto {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+}
+
+.network-current[data-tone='lan'] .network-current-icon {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16a34a;
+}
+
+.network-current[data-tone='wan'] .network-current-icon {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
+.network-current[data-tone='unknown'] .network-current-icon,
+.network-current[data-tone='probing'] .network-current-icon {
+  background: rgba(156, 163, 175, 0.16);
+  color: #9ca3af;
+}
+
+.network-auto-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface);
+}
+
+.network-auto-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.network-auto-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.network-auto-head strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.network-auto-head span:not(.network-state-dot) {
+  color: var(--muted);
+  font-size: 9.5px;
+}
+
+.network-auto-result {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 30px;
+}
+
+.network-auto-result strong {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+}
+
+.network-auto-result span {
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.network-auto-recheck {
+  margin-top: 0;
+}
+
+.network-auto-recheck svg {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 600px) {
+  .network-entry-auto {
+    display: none;
+  }
+
+  .mobile-network-entry strong {
+    max-width: 64px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .network-auto-result {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+}

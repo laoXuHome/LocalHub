@@ -331,6 +331,8 @@ func (s *server) routes() http.Handler {
 
 	// P4.2 HTTP 探测：公开仅暴露脱敏状态；触发、完整结果与单次执行记录仅管理员。
 	mux.HandleFunc("GET /api/network/status", s.handlePublicNetworkStatus)
+	// P4.3 浏览器自动判断：公开只读最小启用目标；不包含禁用项、失败详情与任意 URL 能力。
+	mux.HandleFunc("GET /api/network/targets", s.handlePublicNetworkProbeTargets)
 	mux.Handle("GET /api/admin/network/results", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkResults)))
 	mux.Handle("POST /api/admin/network/probe", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkProbe)))
 	mux.Handle("GET /api/admin/network/probes/{id}", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkProbeRun)))

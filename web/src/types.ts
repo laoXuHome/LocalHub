@@ -81,6 +81,15 @@ export type NetworkConfig = {
   updated_at?: string
 }
 
+// 浏览器自动判断只获取启用目标的最小信息，不包含标签、禁用项或任何失败详情。
+export type NetworkProbeTarget = Pick<NetworkTarget, 'key' | 'address'>
+
+export type NetworkProbeTargets = {
+  targets: NetworkProbeTarget[]
+}
+
+export type AutoNetworkStatus = 'lan' | 'wan' | 'unknown'
+
 export type NetworkTargetInput = Pick<NetworkTarget, 'key' | 'address' | 'enabled'>
 
 export type NetworkProbeState =

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
   APIError,
   createBookmark,
@@ -6,20 +6,24 @@ import {
   loadAuth,
   loadBookmarks,
   loadLayout,
+  loadNetworkProbeTargets,
   refreshFavicon,
   saveLayout,
   updateBookmark,
   uploadBookmarkIcon,
 } from './api'
-import type { AuthStatus, Bookmark, BookmarkInput, CardSize, LayoutDevice, LayoutResponse, NetworkMode, Role, ThemeMode } from './types'
+import type { AuthStatus, AutoNetworkStatus, Bookmark, BookmarkInput, CardSize, LayoutDevice, LayoutResponse, NetworkMode, Role, ThemeMode } from './types'
 import { applyTheme, persistTheme, readTheme, watchSystemTheme } from './theme'
 import {
+  autoStatusText,
   isNetworkMode,
+  networkEntryState,
   networkModeLabel,
   networkModeStorageKey,
   persistNetworkMode,
   readNetworkMode,
 } from './network'
+import { AUTO_CACHE_TTL_MS, createAutoDetector } from './autodetect'
 import { BookmarkCard } from './components/BookmarkCard'
 import { AccountSheet } from './components/AccountSheet'
 import { ThemeSwitcher } from './components/ThemeSwitcher'
@@ -107,6 +111,12 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [networkOpen, setNetworkOpen] = useState(false)
   const [networkMode, setNetworkMode] = useState<NetworkMode>(readNetworkMode)
+  // P4.3 自动判断只在当前浏览器执行；首页渲染与书签加载不等待它。
+  const autoDetector = useMemo(() => createAutoDetector({ loadTargets: loadNetworkProbeTargets }), [])
+  const auto = useSyncExternalStore(autoDetector.subscribe, autoDetector.getSnapshot, autoDetector.getSnapshot)
+  const autoProbing = auto.phase === 'probing'
+  const autoStatus: AutoNetworkStatus | null = auto.result?.status ?? null
+  const networkEntry = networkEntryState(networkMode, autoStatus, autoProbing)
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('localhub.sidebar') === 'collapsed'
@@ -158,6 +168,42 @@ export default function App() {
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
   }, [])
+
+  // AUTO 打开、切回 AUTO、页面回到前台、网络变化与缓存过期都会重新判断。
+  useEffect(() => {
+    if (networkMode !== 'auto') return
+    void autoDetector.run(false)
+  }, [networkMode, autoDetector])
+
+  useEffect(() => {
+    if (networkMode !== 'auto') return
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void autoDetector.run(false)
+    }
+    const onOnline = () => void autoDetector.run(true)
+    const onOffline = () => autoDetector.invalidate('offline')
+    const onConnectionChange = () => void autoDetector.run(false)
+    const connection = (navigator as Navigator & { connection?: EventTarget }).connection
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+    connection?.addEventListener?.('change', onConnectionChange)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+      connection?.removeEventListener?.('change', onConnectionChange)
+    }
+  }, [networkMode, autoDetector])
+
+  // 结果过期后只在前台补判；后台恢复由 visibilitychange 负责。
+  useEffect(() => {
+    if (networkMode !== 'auto' || auto.phase !== 'checked' || !auto.result) return
+    const timer = window.setTimeout(() => {
+      if (document.visibilityState === 'visible') void autoDetector.run(false)
+    }, AUTO_CACHE_TTL_MS)
+    return () => window.clearTimeout(timer)
+  }, [networkMode, auto.phase, auto.result, autoDetector])
 
   useEffect(() => {
     if (!toast) return
@@ -254,6 +300,12 @@ export default function App() {
     setNetworkMode(next)
     return persistNetworkMode(next)
   }, [])
+  const recheckNetwork = useCallback(async () => {
+    await autoDetector.run(true)
+    const result = autoDetector.current()
+    if (!result) return
+    notify(`网络判断：${autoStatusText(result.status)}`, result.status === 'lan' ? 'success' : 'info')
+  }, [autoDetector, notify])
 
   function openNavigation(label: string) {
     notify(`「${label}」将在后续批次开放`)
@@ -627,10 +679,11 @@ export default function App() {
               type="button"
               className="mobile-network-entry"
               onClick={openNetwork}
-              aria-label={`网络模式 ${networkModeLabel(networkMode)}，打开网络设置`}
+              aria-label={`网络模式 ${networkModeLabel(networkMode)}，当前 ${networkEntry.label}，打开网络设置`}
             >
               <NetworkIcon size={15} />
-              <strong>{networkModeLabel(networkMode)}</strong>
+              <span className={`network-state-dot network-state-dot--${networkEntry.tone}`} aria-hidden="true" />
+              <strong>{networkEntry.label}</strong>
             </button>
           )}
           <ThemeSwitcher mode={themeMode} onChange={changeTheme} compact />
@@ -653,11 +706,17 @@ export default function App() {
                   type="button"
                   className="network-entry"
                   onClick={openNetwork}
-                  aria-label={`网络模式 ${networkModeLabel(networkMode)}，打开网络设置`}
+                  aria-label={`网络模式 ${networkModeLabel(networkMode)}，当前 ${networkEntry.label}，打开网络设置`}
                 >
                   <NetworkIcon size={16} />
                   <span className="network-entry-label">网络</span>
-                  <strong>{networkModeLabel(networkMode)}</strong>
+                  <span className={`network-state-dot network-state-dot--${networkEntry.tone}`} aria-hidden="true" />
+                  <strong className={`network-state-text network-state-text--${networkEntry.tone}`}>
+                    {networkEntry.label}
+                  </strong>
+                  {networkEntry.preference === 'auto' && networkEntry.label !== 'AUTO' && (
+                    <span className="network-entry-auto">AUTO</span>
+                  )}
                 </button>
               )}
               {loadState === 'ready' && !editing && (
@@ -796,6 +855,9 @@ export default function App() {
         <NetworkSheet
           mode={networkMode}
           isAdmin={isAdmin}
+          autoPhase={auto.phase}
+          autoResult={auto.result}
+          onRecheck={recheckNetwork}
           onModeChange={changeNetworkMode}
           onClose={closeNetwork}
         />

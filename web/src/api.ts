@@ -7,6 +7,7 @@ import type {
   NetworkConfig,
   NetworkProbeRun,
   NetworkProbeStatus,
+  NetworkProbeTargets,
   NetworkTargetInput,
 } from './types'
 
@@ -123,6 +124,11 @@ export function saveNetworkTargets(targets: NetworkTargetInput[]): Promise<Netwo
 
 export function loadNetworkStatus(signal?: AbortSignal): Promise<NetworkProbeStatus> {
   return getJSON<NetworkProbeStatus>('/api/network/status', signal)
+}
+
+// P4.3 浏览器自动判断所需的最小启用目标；公开只读，不包含地址之外的管理配置。
+export function loadNetworkProbeTargets(signal?: AbortSignal): Promise<NetworkProbeTargets> {
+  return getJSON<NetworkProbeTargets>('/api/network/targets', signal)
 }
 
 export function loadNetworkResults(signal?: AbortSignal): Promise<NetworkProbeStatus> {
