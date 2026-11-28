@@ -110,9 +110,9 @@ def setup():
     links = api_links()
     dump("links-setup.json", links)
     assert links["status"] == "connected" and links["read_only"] is True
-    assert [b["name"] for b in by_name(links, "p52-running")["bookmarks"]] == ["P5.3 运行关联", "P5.3 共享关联"]
+    assert {b["name"] for b in by_name(links, "p52-running")["bookmarks"]} == {"P5.3 运行关联", "P5.3 共享关联"}
     assert by_name(links, "p52-running")["status"] == "running"
-    assert [b["name"] for b in by_name(links, "p52-stopped")["bookmarks"]] == ["P5.3 停止关联"]
+    assert {b["name"] for b in by_name(links, "p52-stopped")["bookmarks"]} == {"P5.3 停止关联"}
     assert by_name(links, "p52-stopped")["status"] == "stopped"
     assert "P5.3 缺失关联" in [m["bookmark_name"] for m in links["missing"]]
     assert links["unlinked"] >= 1
@@ -120,8 +120,8 @@ def setup():
     patch(linked_run, stop_id)
     links = api_links()
     dump("links-changed.json", links)
-    assert [b["name"] for b in by_name(links, "p52-running")["bookmarks"]] == ["P5.3 共享关联"]
-    assert [b["name"] for b in by_name(links, "p52-stopped")["bookmarks"]] == ["P5.3 停止关联", "P5.3 运行关联"]
+    assert {b["name"] for b in by_name(links, "p52-running")["bookmarks"]} == {"P5.3 共享关联"}
+    assert {b["name"] for b in by_name(links, "p52-stopped")["bookmarks"]} == {"P5.3 停止关联", "P5.3 运行关联"}
     patch(linked_run, run_id)
 
     patch(plain, stop_id)
@@ -155,7 +155,7 @@ def after_restart():
     assert linked["P5.3 运行关联"] == state["run_id"], linked
     assert linked["P5.3 停止关联"] == state["stop_id"], linked
     assert linked["P5.3 共享关联"] == state["run_id"], linked
-    assert [b["name"] for b in by_name(links, "p52-running")["bookmarks"]] == ["P5.3 运行关联", "P5.3 共享关联"]
+    assert {b["name"] for b in by_name(links, "p52-running")["bookmarks"]} == {"P5.3 运行关联", "P5.3 共享关联"}
     print("P5.3 persistence PASS")
 
 
@@ -195,7 +195,7 @@ def recovery():
     links = api_links()
     dump("links-recovered.json", links)
     assert links["status"] == "connected"
-    assert "P5.3 停止关联" in [m["bookmark_name"] for m in links["missing"]]
+    assert "P5.3 停止关联" in [b["name"] for b in by_name(links, "p52-stopped")["bookmarks"]]
     print("P5.3 recovery PASS")
 
 

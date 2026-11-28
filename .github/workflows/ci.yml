@@ -196,7 +196,7 @@ jobs:
           docker inspect p52-running p52-stopped > ci-artifacts/p52-docker-inspect.json
           # P5.3 书签手动关联：真实容器 ID、建立/更换/解除、缺失、同名不同 ID、Docker 故障
           echo "--- P5.3 bookmark links ---" | tee -a ci-artifacts/p53.log
-          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py setup 2>&1 | tee -a ci-artifacts/p53.log
+          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py setup 2>&1 | tee -a ci-artifacts/p53.log; test ${PIPESTATUS[0]} -eq 0
           logout=$(curl -s --max-time 3 -b compose-cookies.txt -X POST -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/auth/logout)
           echo "logout HTTP $logout" | tee -a ci-artifacts/auth-smoke.txt
           after=$(curl -s --max-time 3 -b compose-cookies.txt -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/api/admin/whoami)
@@ -245,8 +245,8 @@ jobs:
           echo "icon get after restart HTTP $get2" | tee -a ci-artifacts/icon-smoke.txt
           test "$get2" = "200"
           test "$(sha256sum icon-after.png | awk '{print $1}')" = "$icon_sha"
-          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py after-restart 2>&1 | tee -a ci-artifacts/p53.log
-          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py status 2>&1 | tee -a ci-artifacts/p53.log
+          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py after-restart 2>&1 | tee -a ci-artifacts/p53.log; test ${PIPESTATUS[0]} -eq 0
+          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py status 2>&1 | tee -a ci-artifacts/p53.log; test ${PIPESTATUS[0]} -eq 0
 
           ssrfbm=$(curl -s --max-time 5 -b compose-cookies.txt -H 'Content-Type: application/json' \
             -d '{"name":"SSRF","wan_url":"http://169.254.169.254/latest/meta-data/"}' \
@@ -336,7 +336,7 @@ jobs:
           echo "--- P5.1 Docker unavailable regression ---" | tee ci-artifacts/p51-outage.log
           docker stop localhub-docker-socket-proxy >/dev/null
           sleep 1
-          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py outage 2>&1 | tee -a ci-artifacts/p53.log
+          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py outage 2>&1 | tee -a ci-artifacts/p53.log; test ${PIPESTATUS[0]} -eq 0
           outage_status=$(curl -s --max-time 8 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/docker/status)
           echo "status=$outage_status" | tee -a ci-artifacts/p51-outage.log
           echo "$outage_status" | grep -q '"status":"connection_failed"'
@@ -357,8 +357,8 @@ jobs:
           done
           echo "recovered=$recovered" | tee -a ci-artifacts/p51-outage.log
           test "$recovered" = "1"
-          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py recovery 2>&1 | tee -a ci-artifacts/p53.log
-          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py remove 2>&1 | tee -a ci-artifacts/p53.log
+          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py recovery 2>&1 | tee -a ci-artifacts/p53.log; test ${PIPESTATUS[0]} -eq 0
+          P53_BASE=http://127.0.0.1:18090 P53_ARTIFACT_DIR=ci-artifacts/p53 python3 scripts/p53-ci.py remove 2>&1 | tee -a ci-artifacts/p53.log; test ${PIPESTATUS[0]} -eq 0
           recovered_containers=$(curl -s --max-time 8 -b compose-cookies.txt http://127.0.0.1:18090/api/admin/docker/containers)
           echo "recovered_containers=$recovered_containers" | tee -a ci-artifacts/p51-outage.log
           python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["status"]=="connected" and any(c["name"]=="p52-running" and c["status"]=="running" for c in d["containers"]), d' "$recovered_containers"
