@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import type { BookmarkInput, CardSize } from '../types'
+import type { BookmarkInput, CardSize, DockerContainersInfo } from '../types'
 import type { DraftBookmark } from '../editor'
 import { draftKey } from '../editor'
 import { initialLetter, isHTTPURL } from '../lib'
+import { loadDockerContainers } from '../api'
+import { containerStatusLabel, containerStatusTone } from '../docker'
 import { CloseIcon } from './Icons'
 
 type IconChoice = 'none' | 'text' | 'url' | 'favicon' | 'file'
@@ -39,6 +41,7 @@ function emptyDraft(): DraftBookmark {
     visibility: 'public',
     effective_visibility: 'public',
     open_mode: 'new_tab',
+    docker_container: '',
     folder_path: [],
     sort_order: 0,
     isNew: true,
@@ -67,6 +70,11 @@ export function BookmarkDrawer({
   const [enabled, setEnabled] = useState(true)
   const [visibility, setVisibility] = useState('public')
   const [openMode, setOpenMode] = useState('new_tab')
+  const [linkedContainer, setLinkedContainer] = useState('')
+  const [containerQuery, setContainerQuery] = useState('')
+  const [dockerList, setDockerList] = useState<DockerContainersInfo | null>(null)
+  const [dockerLoading, setDockerLoading] = useState(false)
+  const [dockerReadError, setDockerReadError] = useState('')
   const [iconChoice, setIconChoice] = useState<IconChoice>('none')
   const [iconValue, setIconValue] = useState('')
   const [pendingFile, setPendingFile] = useState<File | undefined>()
@@ -85,6 +93,9 @@ export function BookmarkDrawer({
     setEnabled(source.enabled)
     setVisibility(source.visibility || 'public')
     setOpenMode(source.open_mode || 'new_tab')
+    setLinkedContainer(source.docker_container || '')
+    setContainerQuery('')
+    setDockerReadError('')
     setIconChoice(choiceFor(source))
     setIconValue(source.icon_value)
     setPendingFile(source.iconBlob)
@@ -93,6 +104,18 @@ export function BookmarkDrawer({
     const timer = window.setTimeout(() => firstField.current?.focus(), 60)
     return () => window.clearTimeout(timer)
   }, [open, initial])
+
+  useEffect(() => {
+    if (!open) return
+    const controller = new AbortController()
+    setDockerLoading(true)
+    setDockerList(null)
+    loadDockerContainers(controller.signal)
+      .then((data) => { if (!controller.signal.aborted) setDockerList(data) })
+      .catch(() => { if (!controller.signal.aborted) setDockerReadError('无法读取容器列表，请稍后重试') })
+      .finally(() => { if (!controller.signal.aborted) setDockerLoading(false) })
+    return () => controller.abort()
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -189,6 +212,7 @@ export function BookmarkDrawer({
       enabled,
       visibility,
       open_mode: openMode,
+      docker_container: linkedContainer,
       icon_type: iconType,
       icon_value: iconVal,
       has_icon: iconChoice === 'file' ? Boolean(pendingFile || source.has_icon) : false,
@@ -235,6 +259,78 @@ export function BookmarkDrawer({
             描述
             <textarea value={description} maxLength={200} rows={3} onChange={(event) => setDescription(event.target.value)} placeholder="可选，最多 200 字" />
           </label>
+
+          <fieldset className="docker-link-fieldset">
+            <legend>Docker 容器关联</legend>
+            <div className="docker-link-current" aria-live="polite">
+              {dockerLoading ? (
+                <span>正在读取容器列表…</span>
+              ) : dockerReadError ? (
+                <span className="docker-link-note">{dockerReadError}；仅保存本批前请确认关联。</span>
+              ) : !linkedContainer ? (
+                <span>未关联</span>
+              ) : dockerList?.status !== 'connected' ? (
+                <span className="docker-link-note">Docker 暂不可用，无法确认容器是否仍然存在；当前关联不会被自动移除。</span>
+              ) : (() => {
+                const c = dockerList.containers.find((item) => item.id === linkedContainer)
+                return c ? (
+                  <span className="docker-link-current-row">
+                    <span className="docker-container-dot" data-tone={containerStatusTone(c.status)} aria-hidden="true" />
+                    <strong>{c.name}</strong>
+                    <span>{c.image}</span>
+                    <span>{c.id.slice(0, 12)}</span>
+                    <span>{containerStatusLabel(c.status)}</span>
+                  </span>
+                ) : (
+                  <span className="docker-link-missing">容器已不存在（关联 ID {linkedContainer.slice(0, 12)}）</span>
+                )
+              })()}
+            </div>
+            <div className="docker-link-controls">
+              <input
+                value={containerQuery}
+                onChange={(event) => setContainerQuery(event.target.value)}
+                placeholder="搜索容器名称、镜像或 ID"
+                spellCheck={false}
+                disabled={dockerLoading || dockerList?.status !== 'connected'}
+              />
+              {linkedContainer && (
+                <button type="button" className="ghost-button" onClick={() => setLinkedContainer('')}>
+                  解除关联
+                </button>
+              )}
+            </div>
+            {dockerList?.status === 'connected' ? (
+              <div className="docker-link-list" role="listbox" aria-label="可关联 Docker 容器">
+                {dockerList.containers
+                  .filter((c) => {
+                    const q = containerQuery.trim().toLowerCase()
+                    return !q || c.name.toLowerCase().includes(q) || c.image.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)
+                  })
+                  .slice(0, 50)
+                  .map((c) => (
+                    <button
+                      type="button"
+                      key={c.id}
+                      className={`docker-link-option${linkedContainer === c.id ? ' is-active' : ''}`}
+                      aria-pressed={linkedContainer === c.id}
+                      onClick={() => setLinkedContainer(c.id)}
+                    >
+                      <span className="docker-container-dot" data-tone={containerStatusTone(c.status)} aria-hidden="true" />
+                      <span className="docker-link-option-main">
+                        <strong>{c.name}</strong>
+                        <span>{c.image} · {c.id.slice(0, 12)}</span>
+                      </span>
+                      <span className={`docker-link-state docker-link-state--${containerStatusTone(c.status)}`}>{containerStatusLabel(c.status)}</span>
+                    </button>
+                  ))}
+                {dockerList.containers.length === 0 && <span className="docker-link-note">当前 Docker 环境没有可关联的容器。</span>}
+              </div>
+            ) : dockerList ? (
+              <p className="docker-link-note">{dockerList.message || 'Docker 不可用，暂不能选择容器'}</p>
+            ) : null}
+            <p className="field-hint">关联仅保存容器 ID，不会自动迁移到同名新容器。本功能只读，不提供启停、删除或日志操作。</p>
+          </fieldset>
 
           <fieldset className="icon-fieldset">
             <legend>图标</legend>

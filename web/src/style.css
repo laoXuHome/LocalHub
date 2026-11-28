@@ -3967,3 +3967,136 @@ img {
     align-items: flex-start;
   }
 }
+
+/* P5.3 书签与 Docker 容器手动关联 */
+.docker-link-fieldset {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 9px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.docker-link-fieldset legend {
+  padding: 0 5px;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.docker-link-current {
+  min-height: 32px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.docker-link-current-row,
+.docker-link-option {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.docker-link-current-row strong,
+.docker-link-option-main strong {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-link-current-row span:not(.docker-container-dot) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-link-missing { color: #dc2626; font-weight: 700; }
+.docker-link-note { color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+.docker-link-controls {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+  align-items: center;
+}
+
+.docker-link-controls input {
+  min-width: 0;
+  flex: 1 1 0;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.docker-link-list {
+  display: flex;
+  min-width: 0;
+  max-height: 210px;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+}
+
+.docker-link-option {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text-soft);
+  text-align: left;
+  cursor: pointer;
+}
+
+.docker-link-option:hover { border-color: var(--border-strong); }
+.docker-link-option.is-active { border-color: #7c3aed; background: rgba(124, 58, 237, 0.08); }
+
+.docker-link-option-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.docker-link-option-main span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-link-state { flex: 0 0 auto; font-size: 10px; font-weight: 700; }
+.docker-link-state--connected { color: #16a34a; }
+.docker-link-state--not_connected { color: #9ca3af; }
+.docker-link-state--fault { color: #dc2626; }
+.docker-link-state--unknown { color: #6b7280; }
+
+.docker-container-links {
+  color: var(--text-soft);
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .docker-link-controls { align-items: stretch; flex-direction: column; }
+  .docker-link-controls .ghost-button { align-self: flex-start; }
+}

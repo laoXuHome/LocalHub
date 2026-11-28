@@ -3,6 +3,7 @@ import type {
   Bookmark,
   BookmarkInput,
   BookmarksResponse,
+  DockerBookmarkLinks,
   DockerContainersInfo,
   DockerStatusInfo,
   LayoutResponse,
@@ -130,6 +131,10 @@ export function loadDockerStatus(signal?: AbortSignal): Promise<DockerStatusInfo
 
 export function loadDockerContainers(signal?: AbortSignal): Promise<DockerContainersInfo> {
   return getJSON<DockerContainersInfo>('/api/admin/docker/containers', signal)
+}
+
+export function loadDockerBookmarkLinks(signal?: AbortSignal): Promise<DockerBookmarkLinks> {
+  return getJSON<DockerBookmarkLinks>('/api/admin/docker/bookmark-links', signal)
 }
 
 export function loadNetworkStatus(signal?: AbortSignal): Promise<NetworkProbeStatus> {

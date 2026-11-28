@@ -136,3 +136,82 @@ func TestDockerContainersRequiresAdminAndReturnsRealFixture(t *testing.T) {
 		}
 	}
 }
+
+func TestDockerBookmarkLinksAdminMissingAndOutage(t *testing.T) {
+	idOK := strings.Repeat("a", 64)
+	idMissing := strings.Repeat("b", 64)
+	idSecond := strings.Repeat("c", 64)
+	fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/containers/json":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`[{"Id":"` + idOK + `","Names":["/web"],"Image":"nginx:latest","Created":1700000000,"State":"running","Status":"Up 1 hour","Ports":[],"Labels":{}},{"Id":"` + idSecond + `","Names":["/cache"],"Image":"redis:7","Created":1700000001,"State":"exited","Status":"Exited","Ports":[],"Labels":{}}]`))
+		case strings.HasPrefix(r.URL.Path, "/containers/") && strings.HasSuffix(r.URL.Path, "/json"):
+			_, _ = w.Write([]byte(`{"State":{"StartedAt":"2026-11-28T06:00:00Z"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer fixture.Close()
+	s, ts := newTestServer(t, nil)
+	s.docker, _ = dockerclient.New(fixture.URL, 2*time.Second)
+	bootstrap(t, s, "Adm1nPassw0rd!2026")
+	login := do(t, ts, "POST", "/api/auth/login", `{"username":"admin","password":"Adm1nPassw0rd!2026"}`, "", nil)
+	if r := do(t, ts, "GET", "/api/admin/docker/bookmark-links", "", "", nil); r.code != http.StatusUnauthorized {
+		t.Fatalf("访客读取关联应 401，got %d", r.code)
+	}
+	body := `{"name":"Web","wan_url":"https://web.example.com","docker_container":"` + idOK + `"}`
+	if r := do(t, ts, "POST", "/api/admin/bookmarks", body, login.cookie, nil); r.code != http.StatusCreated {
+		t.Fatalf("关联书签创建失败：%d %s", r.code, r.body)
+	}
+	body = `{"name":"Cache","wan_url":"https://cache.example.com","docker_container":"` + idSecond + `"}`
+	if r := do(t, ts, "POST", "/api/admin/bookmarks", body, login.cookie, nil); r.code != http.StatusCreated {
+		t.Fatalf("第二关联书签创建失败：%d", r.code)
+	}
+	body = `{"name":"Old","wan_url":"https://old.example.com","docker_container":"` + idMissing + `"}`
+	if r := do(t, ts, "POST", "/api/admin/bookmarks", body, login.cookie, nil); r.code != http.StatusCreated {
+		t.Fatalf("历史关联书签创建失败：%d", r.code)
+	}
+	r := do(t, ts, "GET", "/api/admin/docker/bookmark-links", "", login.cookie, nil)
+	if r.code != 200 {
+		t.Fatalf("关联读取应 200，got %d", r.code)
+	}
+	m := r.json(t)
+	if m["status"] != "connected" {
+		t.Fatalf("状态错误：%v", m)
+	}
+	containers := m["containers"].([]any)
+	if len(containers) != 2 {
+		t.Fatalf("容器数错误：%v", containers)
+	}
+	var webLinks, cacheLinks []any
+	for _, raw := range containers {
+		c := raw.(map[string]any)
+		switch c["name"] {
+		case "web":
+			webLinks = c["bookmarks"].([]any)
+		case "cache":
+			cacheLinks = c["bookmarks"].([]any)
+		}
+	}
+	if len(webLinks) != 1 || webLinks[0].(map[string]any)["name"] != "Web" {
+		t.Fatalf("第一个容器关联错误：%v", webLinks)
+	}
+	if len(cacheLinks) != 1 || cacheLinks[0].(map[string]any)["name"] != "Cache" {
+		t.Fatalf("第二个容器关联错误：%v", cacheLinks)
+	}
+	missing := m["missing"].([]any)
+	if len(missing) != 1 || missing[0].(map[string]any)["bookmark_name"] != "Old" {
+		t.Fatalf("缺失关联错误：%v", missing)
+	}
+
+	fixture.Close()
+	r = do(t, ts, "GET", "/api/admin/docker/bookmark-links", "", login.cookie, nil)
+	m = r.json(t)
+	if m["status"] == "connected" {
+		t.Fatalf("故障后不应仍为 connected：%v", m)
+	}
+	if len(m["missing"].([]any)) != 0 {
+		t.Fatalf("Docker 故障时不得判定容器不存在：%v", m["missing"])
+	}
+}

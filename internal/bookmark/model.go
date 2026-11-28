@@ -165,7 +165,7 @@ func Build(base *Bookmark, in Input) (*Bookmark, error) {
 		b.OpenMode = strings.ToLower(strings.TrimSpace(*in.OpenMode))
 	}
 	if in.DockerContainer != nil {
-		b.DockerContainer = strings.TrimSpace(*in.DockerContainer)
+		b.DockerContainer = strings.ToLower(strings.TrimSpace(*in.DockerContainer))
 	}
 	if in.SortOrder != nil {
 		b.SortOrder = *in.SortOrder
@@ -242,11 +242,8 @@ func Validate(b *Bookmark) error {
 	default:
 		return invalid("open_mode=%q 非法，可选 new_tab/self", b.OpenMode)
 	}
-	if len([]byte(b.DockerContainer)) > MaxDockerLen {
-		return invalid("docker_container 最长 %d 字节", MaxDockerLen)
-	}
-	if strings.ContainsAny(b.DockerContainer, "\r\n") {
-		return invalid("docker_container 不能包含换行")
+	if !ValidContainerID(b.DockerContainer) {
+		return invalid("docker_container 必须是 12–64 位十六进制容器 ID，不能使用容器名称")
 	}
 	if b.SortOrder < 0 {
 		return invalid("sort_order 不能为负数")
@@ -295,4 +292,21 @@ func checkHTTPURL(raw string) error {
 		return invalid("URL 不能包含空白字符")
 	}
 	return nil
+}
+
+// ValidContainerID 校验关联使用的是 Docker 容器 ID，而不是容器名称。
+// 空字符串表示未关联；Docker 发现返回完整 64 位 ID，12 位短 ID 仅兼容历史数据。
+func ValidContainerID(id string) bool {
+	if id == "" {
+		return true
+	}
+	if len(id) < 12 || len(id) > 64 {
+		return false
+	}
+	for _, r := range id {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
 }

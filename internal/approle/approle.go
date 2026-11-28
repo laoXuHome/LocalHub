@@ -346,6 +346,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /api/network/targets", s.handlePublicNetworkProbeTargets)
 	mux.Handle("GET /api/admin/docker/status", s.requireAdmin(http.HandlerFunc(s.handleAdminDockerStatus)))
 	mux.Handle("GET /api/admin/docker/containers", s.requireAdmin(http.HandlerFunc(s.handleAdminDockerContainers)))
+	mux.Handle("GET /api/admin/docker/bookmark-links", s.requireAdmin(http.HandlerFunc(s.handleAdminDockerBookmarkLinks)))
 
 	mux.Handle("GET /api/admin/network/results", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkResults)))
 	mux.Handle("POST /api/admin/network/probe", s.requireAdmin(http.HandlerFunc(s.handleAdminNetworkProbe)))

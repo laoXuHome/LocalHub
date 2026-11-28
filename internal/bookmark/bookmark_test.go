@@ -291,3 +291,19 @@ func testEqualPath(a, b []string) bool {
 	}
 	return true
 }
+
+func TestValidContainerIDRejectsName(t *testing.T) {
+	ok := strings.Repeat("a", 64)
+	if !ValidContainerID(ok) {
+		t.Fatalf("64 位容器 ID 应合法")
+	}
+	for _, bad := range []string{"web", "nginx:latest", strings.Repeat("a", 11), strings.Repeat("g", 64), "容器"} {
+		if ValidContainerID(bad) {
+			t.Fatalf("非法容器 ID 被接受：%q", bad)
+		}
+	}
+	in := Input{Name: strp("x"), WANURL: strp("https://a.example.com"), DockerContainer: strp("Web")}
+	if _, err := Build(nil, in); err == nil {
+		t.Fatalf("容器名称不能作为关联 ID")
+	}
+}

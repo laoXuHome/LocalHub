@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { APIError, loadDockerContainers, loadDockerStatus } from '../api'
+import { APIError, loadDockerBookmarkLinks, loadDockerContainers, loadDockerStatus } from '../api'
 import {
   containerStatusLabel,
   containerStatusTone,
@@ -10,7 +10,7 @@ import {
   formatDockerCreatedAt,
   formatDockerStartedAt,
 } from '../docker'
-import type { DockerContainersInfo, DockerStatusInfo } from '../types'
+import type { DockerBookmarkLinks, DockerContainersInfo, DockerStatusInfo } from '../types'
 import { CloseIcon, RefreshIcon, ServerIcon, ShieldIcon } from './Icons'
 
 type Props = {
@@ -21,6 +21,7 @@ type Props = {
 type DockerData = {
   status: DockerStatusInfo | null
   list: DockerContainersInfo | null
+  links: DockerBookmarkLinks | null
 }
 
 function messageFor(error: unknown): string {
@@ -80,28 +81,32 @@ export function DockerSheet({ isAdmin, onClose }: Props) {
       abortRef.current = controller
       if (showLoading) setLoading(true)
       try {
-        const [statusResult, listResult] = await Promise.allSettled([
+        const [statusResult, listResult, linksResult] = await Promise.allSettled([
           loadDockerStatus(controller.signal),
           loadDockerContainers(controller.signal),
+          loadDockerBookmarkLinks(controller.signal),
         ])
         if (controller.signal.aborted) return
 
         let nextStatus: DockerStatusInfo | null = null
         let nextList: DockerContainersInfo | null = null
+        let nextLinks: DockerBookmarkLinks | null = null
         let failure = ''
         if (statusResult.status === 'fulfilled') nextStatus = statusResult.value
         else failure = messageFor(statusResult.reason)
         if (listResult.status === 'fulfilled') nextList = listResult.value
         else if (!failure) failure = messageFor(listResult.reason)
+        if (linksResult.status === 'fulfilled') nextLinks = linksResult.value
 
         const previousList = dataRef.current?.list
         const listConnected = nextList?.status === 'connected'
         const keepPreviousList = Boolean(nextList && !listConnected && previousList?.containers.length)
         if (!failure && nextList && !listConnected) failure = nextList.message || 'Docker 连接异常'
-        if (nextList || nextStatus) {
+        if (nextList || nextStatus || nextLinks) {
           setData((previous) => ({
             status: nextStatus || (nextList ? fallbackStatus(nextList) : previous?.status || null),
             list: listConnected ? nextList : keepPreviousList ? previous?.list || null : nextList || previous?.list || null,
+            links: nextLinks || previous?.links || null,
           }))
         }
         if (failure) {
@@ -138,6 +143,7 @@ export function DockerSheet({ isAdmin, onClose }: Props) {
   const tone = status ? dockerStatusTone(status.status) : 'unknown'
   const containers = list?.containers || []
   const counts = list?.counts
+  const linkedByContainer = new Map((data?.links?.containers || []).map((item) => [item.id, item.bookmarks]))
   const noData = !list && !status
 
   return (
@@ -264,6 +270,16 @@ export function DockerSheet({ isAdmin, onClose }: Props) {
                         <span title={container.ports.join(', ')}>{container.ports.length ? container.ports.join(' · ') : '无端口映射'}</span>
                         <span>{container.status === 'running' && container.started_at ? `运行于 ${formatDockerStartedAt(container.started_at)}` : formatDockerCreatedAt(container.created_at)}</span>
                         {Object.keys(container.labels || {}).length > 0 && <span>{Object.keys(container.labels).length} 个标签</span>}
+                        {(() => {
+                          const linked = linkedByContainer.get(container.id) || []
+                          return linked.length ? (
+                            <span className="docker-container-links" title={linked.map((item) => item.name).join('、')}>
+                              关联 {linked.length} 个书签：{linked.slice(0, 2).map((item) => item.name).join('、')}{linked.length > 2 ? ` 等 ${linked.length} 个` : ''}
+                            </span>
+                          ) : (
+                            <span className="docker-container-links">未关联书签</span>
+                          )
+                        })()}
                       </div>
                     </article>
                   )

@@ -25,6 +25,7 @@ export type Bookmark = {
   visibility: string
   effective_visibility: string
   open_mode: string
+  docker_container?: string
   folder_path: string[]
   sort_order: number
 }
@@ -62,6 +63,7 @@ export type BookmarkInput = {
   enabled?: boolean
   visibility?: string
   open_mode?: string
+  docker_container?: string
   folder_path?: string[]
   sort_order?: number
 }
@@ -175,4 +177,26 @@ export type DockerContainersInfo = {
   counts: DockerContainerCounts
   skipped?: number
   truncated?: boolean
+}
+
+export type DockerBookmarkRef = { id: number; name: string }
+export type DockerContainerLink = {
+  id: string
+  name: string
+  status: DockerContainerStatus
+  bookmarks: DockerBookmarkRef[]
+}
+export type DockerMissingLink = {
+  bookmark_id: number
+  bookmark_name: string
+  container_id: string
+}
+export type DockerBookmarkLinks = {
+  status: DockerConnectionStatus
+  checked_at: string
+  message: string
+  read_only: boolean
+  containers: DockerContainerLink[]
+  missing: DockerMissingLink[]
+  unlinked: number
 }

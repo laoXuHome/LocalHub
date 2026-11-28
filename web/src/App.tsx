@@ -520,6 +520,7 @@ export default function App() {
       enabled: draft.enabled,
       visibility: draft.visibility,
       open_mode: draft.open_mode,
+      docker_container: draft.docker_container || '',
       folder_path: draft.folder_path,
     }
     // 图标文件在最终保存时通过专用上传接口提交；表单阶段只保留本地预览。
