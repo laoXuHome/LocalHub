@@ -1,0 +1,9 @@
+{
+  "docker_status": "connection_failed",
+  "containers": 0,
+  "missing": 0,
+  "associations_kept": true,
+  "public_bookmarks": 200,
+  "auth_status": 200,
+  "health": 200
+}

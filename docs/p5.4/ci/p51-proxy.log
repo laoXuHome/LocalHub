@@ -1,0 +1,41 @@
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:21.319Z level=INFO msg="starting socket-proxy" version=1.14.0 os=linux arch=amd64 runtime=go1.27.4 URL=github.com/wollomatic/socket-proxy
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:21.319Z level=INFO msg="configuration info" socketpath=/var/run/docker.sock listenaddress=0.0.0.0:2375 loglevel=INFO logjson=false allowfrom=localhub shutdowngracetime=10
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:21.319Z level=INFO msg="watchdog disabled"
+localhub-docker-socket-proxy  | Default request allowlist:
+localhub-docker-socket-proxy  |    Method   Regex
+localhub-docker-socket-proxy  |    GET      [^(/version|/_ping|/containers/json|/containers/[a-zA-Z0-9_.-]+/json|/v1\.[0-9]+/(version|_ping|containers/json|containers/[a-zA-Z0-9_.-]+/json))$]
+localhub-docker-socket-proxy  |    HEAD     [^/_ping$]
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:21.320Z level=INFO msg="socket-proxy running and listening..."
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:24.980Z level=INFO msg="received stop signal - shutting down"
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:24.980Z level=INFO msg="shutdown finished - exiting" "exit code"=0
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:25.216Z level=INFO msg="starting socket-proxy" version=1.14.0 os=linux arch=amd64 runtime=go1.27.4 URL=github.com/wollomatic/socket-proxy
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:25.216Z level=INFO msg="configuration info" socketpath=/var/run/docker.sock listenaddress=0.0.0.0:2375 loglevel=INFO logjson=false allowfrom=localhub shutdowngracetime=10
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:25.216Z level=INFO msg="watchdog disabled"
+localhub-docker-socket-proxy  | Default request allowlist:
+localhub-docker-socket-proxy  |    Method   Regex
+localhub-docker-socket-proxy  |    GET      [^(/version|/_ping|/containers/json|/containers/[a-zA-Z0-9_.-]+/json|/v1\.[0-9]+/(version|_ping|containers/json|containers/[a-zA-Z0-9_.-]+/json))$]
+localhub-docker-socket-proxy  |    HEAD     [^/_ping$]
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:25.217Z level=INFO msg="socket-proxy running and listening..."
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:36.691Z level=INFO msg="received stop signal - shutting down"
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:36.691Z level=INFO msg="shutdown finished - exiting" "exit code"=0
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:36.915Z level=INFO msg="starting socket-proxy" version=1.14.0 os=linux arch=amd64 runtime=go1.27.4 URL=github.com/wollomatic/socket-proxy
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:36.915Z level=INFO msg="configuration info" socketpath=/var/run/docker.sock listenaddress=0.0.0.0:2375 loglevel=INFO logjson=false allowfrom=localhub shutdowngracetime=10
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:36.916Z level=INFO msg="watchdog disabled"
+localhub-docker-socket-proxy  | Default request allowlist:
+localhub-docker-socket-proxy  |    Method   Regex
+localhub-docker-socket-proxy  |    GET      [^(/version|/_ping|/containers/json|/containers/[a-zA-Z0-9_.-]+/json|/v1\.[0-9]+/(version|_ping|containers/json|containers/[a-zA-Z0-9_.-]+/json))$]
+localhub-docker-socket-proxy  |    HEAD     [^/_ping$]
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:36.917Z level=INFO msg="socket-proxy running and listening..."
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.758Z level=WARN msg="blocked request" reason="method not allowed" method=POST URL=/containers/create client=172.18.0.3:38266 response=405
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.764Z level=WARN msg="blocked request" reason="method not allowed" method=POST URL=/containers/p51fixture/start client=172.18.0.3:38268 response=405
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.771Z level=WARN msg="blocked request" reason="method not allowed" method=POST URL=/containers/p51fixture/stop client=172.18.0.3:38280 response=405
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.778Z level=WARN msg="blocked request" reason="method not allowed" method=POST URL=/containers/p51fixture/restart client=172.18.0.3:38288 response=405
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.784Z level=WARN msg="blocked request" reason="method not allowed" method=DELETE URL=/containers/p51fixture client=172.18.0.3:38294 response=405
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.791Z level=WARN msg="blocked request" reason="method not allowed" method=POST URL=/containers/p51fixture/exec client=172.18.0.3:38310 response=405
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.797Z level=WARN msg="blocked request" reason="method not allowed" method=DELETE URL=/images/alpine:latest client=172.18.0.3:38326 response=405
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.803Z level=WARN msg="blocked request" reason="method not allowed" method=POST URL=/networks/create client=172.18.0.3:38336 response=405
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.811Z level=WARN msg="blocked request" reason="method not allowed" method=POST URL=/networks/p51net/connect client=172.18.0.3:38342 response=405
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.817Z level=WARN msg="blocked request" reason="method not allowed" method=POST URL=/v1.52/containers/p51fixture/start client=172.18.0.3:38354 response=405
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.824Z level=WARN msg="blocked request" reason="method not allowed" method=DELETE URL=/v1.52/images/alpine:latest client=172.18.0.3:38358 response=405
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.873Z level=WARN msg="blocked request" reason="path not allowed" method=GET URL=/images/json client=172.18.0.3:38384 response=403
+localhub-docker-socket-proxy  | time=2026-11-28T12:54:37.880Z level=WARN msg="blocked request" reason="path not allowed" method=GET URL=/containers/p51fixture/logs client=172.18.0.3:38394 response=403

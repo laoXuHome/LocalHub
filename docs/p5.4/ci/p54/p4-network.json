@@ -1,0 +1,6 @@
+{
+  "targets": 3,
+  "enabled_public": 1,
+  "public_status": "unknown",
+  "lan_wan_selector_source": "bookmark lan_url/wan_url preserved"
+}

@@ -1,0 +1,14 @@
+--- auth smoke ---
+{"authenticated":false,"needs_setup":false,"role":"guest","session_ttl_seconds":43200}
+
+guest whoami HTTP 401
+login HTTP 200
+{"id":1,"role":"admin","session_created_at":"2026-11-28T12:54:22Z","session_expires_at":"2026-11-29T00:54:22Z","session_ttl_seconds":43200,"username":"admin"}
+
+guest docker status HTTP 401
+{"status":"connected","api_version":"1.54","checked_at":"2026-11-28T12:54:22Z","message":"Docker 只读连接正常","read_only":true}
+
+P5.2 containers: {'total': 6, 'running': 4, 'stopped': 2, 'error': 0, 'unknown': 0} names: ['buildx_buildkit_builder-ec7f530c-aa36-46d6-b9ec-d4664af312ec0', 'lh-arm64', 'localhub', 'localhub-docker-socket-proxy', 'p52-running', 'p52-stopped']
+logout HTTP 200
+after logout whoami HTTP 401
+wrong password HTTP 401

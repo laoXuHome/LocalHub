@@ -1,0 +1,9 @@
+{
+  "run_id": "287dbf016a33ce2c12d6c2e35221271cc99ab828d2d46b90125ef156b062b9d3",
+  "stop_id": "901133423d14b0eb4e7c2073e44cc5743f039d778ce00a869bd5c463606b6b78",
+  "linked_run": 1,
+  "linked_stop": 2,
+  "linked_shared": 3,
+  "linked_missing": 4,
+  "plain": 5
+}

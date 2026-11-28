@@ -1,0 +1,17 @@
+?   	github.com/laoXuHome/LocalHub/cmd/localhub	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/buildinfo	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/initrole	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/logging	[no test files]
+?   	github.com/laoXuHome/LocalHub/internal/static	[no test files]
+ok  	github.com/laoXuHome/LocalHub/internal/approle	15.889s
+ok  	github.com/laoXuHome/LocalHub/internal/auth	1.874s
+ok  	github.com/laoXuHome/LocalHub/internal/bookmark	0.250s
+ok  	github.com/laoXuHome/LocalHub/internal/config	0.010s
+ok  	github.com/laoXuHome/LocalHub/internal/datadir	0.015s
+ok  	github.com/laoXuHome/LocalHub/internal/db	0.060s
+ok  	github.com/laoXuHome/LocalHub/internal/dockerclient	2.026s
+ok  	github.com/laoXuHome/LocalHub/internal/favicon	0.034s
+ok  	github.com/laoXuHome/LocalHub/internal/icon	0.018s
+ok  	github.com/laoXuHome/LocalHub/internal/network	0.054s
+ok  	github.com/laoXuHome/LocalHub/internal/probe	0.464s
+ok  	github.com/laoXuHome/LocalHub/internal/transfer	0.064s

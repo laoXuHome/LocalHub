@@ -1,0 +1,14 @@
+p1-auth.json written
+P1 auth PASS
+p2-p3-bookmarks-layout.json written
+P2 bookmarks + P3 layout PASS
+p4-network.json written
+P4 network PASS
+p5-docker-four-states-real.json written
+P5 Docker running/stopped/error + associations PASS
+p5.4-pre-summary.json written
+P5.4 pre PASS
+p5.4-outage.json written
+P5.4 outage + P1/P2/P3 unaffected PASS
+p5.4-same-name-final.json written
+P5.4 same-name + final regression PASS

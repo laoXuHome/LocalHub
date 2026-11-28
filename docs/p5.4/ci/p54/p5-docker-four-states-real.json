@@ -1,0 +1,15 @@
+{
+  "running": "p52-running",
+  "stopped": "p52-stopped",
+  "error": "p54-restarting",
+  "unknown": "仅单元测试覆盖，未在真实 Docker 中构造",
+  "counts": {
+    "total": 6,
+    "running": 4,
+    "stopped": 1,
+    "error": 1,
+    "unknown": 0
+  },
+  "multi_bookmark_container": "p52-running",
+  "missing_and_unlinked": true
+}

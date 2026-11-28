@@ -1,0 +1,104 @@
+{
+  "status": "connected",
+  "checked_at": "2026-11-28T12:53:48Z",
+  "message": "Docker 容器列表已更新",
+  "read_only": true,
+  "refresh_interval_seconds": 30,
+  "containers": [
+    {
+      "id": "901133423d14b0eb4e7c2073e44cc5743f039d778ce00a869bd5c463606b6b78",
+      "name": "p52-stopped",
+      "image": "alpine:3.20",
+      "status": "stopped",
+      "created_at": "2026-11-28T12:53:48Z",
+      "ports": [],
+      "labels": {}
+    },
+    {
+      "id": "287dbf016a33ce2c12d6c2e35221271cc99ab828d2d46b90125ef156b062b9d3",
+      "name": "p52-running",
+      "image": "alpine:3.20",
+      "status": "running",
+      "created_at": "2026-11-28T12:53:48Z",
+      "started_at": "2026-11-28T12:53:48Z",
+      "ports": [],
+      "labels": {}
+    },
+    {
+      "id": "d8f7e18723a18033fbf50fb9912a0772939cbe7b242b8b5daffa4e593e587e7f",
+      "name": "localhub",
+      "image": "localhub:amd64",
+      "status": "running",
+      "created_at": "2026-11-28T12:53:45Z",
+      "started_at": "2026-11-28T12:53:45Z",
+      "ports": [
+        "*:18091->11030/tcp",
+        "*:18091->11030/tcp"
+      ],
+      "labels": {
+        "com.docker.compose.config-hash": "0f6db0288a5f251931b4a7c7578edf456deaba10ab1f9b14b986602fe360098f",
+        "com.docker.compose.container-number": "1",
+        "com.docker.compose.depends_on": "docker-socket-proxy:service_started:false",
+        "com.docker.compose.image": "sha256:1cfda2b210014470201786cf0fdd64d6ba193127ca055a9c7eb1c0764d7caca4",
+        "com.docker.compose.oneoff": "False",
+        "com.docker.compose.project": "localhub",
+        "com.docker.compose.project.config_files": "/home/runner/work/LocalHub/LocalHub/docker-compose.yml",
+        "com.docker.compose.project.working_dir": "/home/runner/work/LocalHub/LocalHub",
+        "com.docker.compose.service": "localhub",
+        "com.docker.compose.version": "5.1.3",
+        "org.opencontainers.image.created": "2026-11-28T12:52:52Z",
+        "org.opencontainers.image.description": "本地优先的 NAS 书签与服务面板（P0 基础设施）",
+        "org.opencontainers.image.revision": "af22334f213bf6fef8b8305acd30942606028cfb",
+        "org.opencontainers.image.source": "https://github.com/laoXuHome/LocalHub",
+        "org.opencontainers.image.title": "LocalHub",
+        "org.opencontainers.image.version": "v0.1.0-p0"
+      }
+    },
+    {
+      "id": "b64b876093ba287a932a250beeeabb0906e9f1fce3b727a731b3dfb15855a79e",
+      "name": "localhub-docker-socket-proxy",
+      "image": "wollomatic/socket-proxy:1.14.0",
+      "status": "running",
+      "created_at": "2026-11-28T12:53:45Z",
+      "started_at": "2026-11-28T12:53:45Z",
+      "ports": [
+        "2375/tcp"
+      ],
+      "labels": {
+        "com.docker.compose.config-hash": "f1d49b6d38ac76f305319a853ee2cbd4708b8c6735beb5e22d7e88fabc79d8a5",
+        "com.docker.compose.container-number": "1",
+        "com.docker.compose.depends_on": "",
+        "com.docker.compose.image": "sha256:fead157c4de4092461267092be49c993c2e6dd296a54c89ed04b8c870016b045",
+        "com.docker.compose.oneoff": "False",
+        "com.docker.compose.project": "localhub",
+        "com.docker.compose.project.config_files": "/home/runner/work/LocalHub/LocalHub/docker-compose.yml",
+        "com.docker.compose.project.working_dir": "/home/runner/work/LocalHub/LocalHub",
+        "com.docker.compose.service": "docker-socket-proxy",
+        "com.docker.compose.version": "5.1.3",
+        "org.opencontainers.image.description": "A lightweight Unix socket proxy with configurable access controls",
+        "org.opencontainers.image.documentation": "https://github.com/wollomatic/socket-proxy/blob/main/README.md",
+        "org.opencontainers.image.licenses": "MIT AND Apache-2.0",
+        "org.opencontainers.image.source": "https://github.com/wollomatic/socket-proxy",
+        "org.opencontainers.image.title": "wollomatic/socket-proxy",
+        "org.opencontainers.image.url": "https://github.com/wollomatic/socket-proxy"
+      }
+    },
+    {
+      "id": "1323d581d1eabbaa605a8bbcaafef1a5559b540c78ed56ec91a77ac0457db362",
+      "name": "buildx_buildkit_builder-2b14951e-10e2-4a4f-bcbd-a889c19d21350",
+      "image": "moby/buildkit:buildx-stable-1",
+      "status": "running",
+      "created_at": "2026-11-28T12:52:51Z",
+      "started_at": "2026-11-28T12:52:51Z",
+      "ports": [],
+      "labels": {}
+    }
+  ],
+  "counts": {
+    "total": 5,
+    "running": 4,
+    "stopped": 1,
+    "error": 0,
+    "unknown": 0
+  }
+}

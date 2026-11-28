@@ -1,0 +1,61 @@
+
+T1 distroless 启动 / 无 Shell
+PASS | T1a --version 可执行                        | localhub v0.1.0-p0 commit=af22334f213bf6fef8b8305acd30942606028cfb build_time=2026-11-28T12:52:40Z
+PASS | T1b 镜像内无 /bin/sh                       | docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "/bin/sh": stat /bin/sh: no such file or directory
+
+T2 init 修正 /data 属主
+PASS | T2a 容器启动并 healthy                    | HTTP 200
+PASS | T2b /data 属主=1000:1000                     | 1000:1000
+PASS | T2c icons 属主                               | 1000:1000
+PASS | T2c backups 属主                             | 1000:1000
+PASS | T2c logs 属主                                | 1000:1000
+
+T3/T4 app 进程身份
+PASS | T3 app uid/gid 与 PUID/PGID 一致            | uid=1000 gid=1000
+PASS | T4 app 非 root                                | is_root=False
+
+T5 能力缺失逐项验证（独立用例，互不替代）
+PASS | T5 仅缺 CAP_CHOWN                            | exit=1 code=CHOWN_FAILED 命中=CAP_CHOWN
+  关键日志（CAP_CHOWN）：{"time":"2026-11-28T20:54:13.490755829+08:00","level":"ERROR","msg":"属主修正失败","role":"init","service":"localhub","error":"修正属主 \"/data\" -> 1000:1000 失败：chown /data: operation not permitted","code":"CH
+PASS | T5 仅缺 CAP_SETUID                           | exit=1 code=PRIVILEGE_DENIED 命中=CAP_SETUID
+  关键日志（CAP_SETUID）：{"time":"2026-11-28T20:54:13.726245402+08:00","level":"ERROR","msg":"业务进程启动失败","role":"init","service":"localhub","error":"fork/exec /localhub: operation not permitted","code":"PRIVILEGE_DENIED","hint
+PASS | T5 仅缺 CAP_SETGID                           | exit=1 code=PRIVILEGE_DENIED 命中=CAP_SETGID
+  关键日志（CAP_SETGID）：{"time":"2026-11-28T20:54:13.955553348+08:00","level":"ERROR","msg":"业务进程启动失败","role":"init","service":"localhub","error":"fork/exec /localhub: operation not permitted","code":"PRIVILEGE_DENIED","hint
+PASS | T5 全部能力移除时非零退出           | exit=1 DATA_DIR_CREATE_FAILED
+
+T6 SIGTERM 转发
+PASS | T6a init 记录并转发 SIGTERM               | 日志含“转发给业务进程”
+PASS | T6b 优雅退出码=0                          | exit=0
+
+T6 SIGINT 转发（独立容器）
+PASS | T6c SIGINT 前置：服务已就绪            | HTTP 200
+  init 日志：{"time":"2026-11-28T20:54:15.141357731+08:00","level":"INFO","msg":"收到信号，转发给业务进程","role":"init","service":"localhub","signal":"interrupt","app_pid":12}
+  app  日志：{"time":"2026-11-28T20:54:15.141505281+08:00","level":"INFO","msg":"收到信号，开始优雅关闭","role":"app","service":"localhub","signal":"interrupt"}
+  容器状态：stopped=yes exit_code=0
+PASS | T6d init 收到并转发 SIGINT                | signal=interrupt
+PASS | T6e app 收到转发的 SIGINT                 | signal=interrupt
+PASS | T6f SIGINT 后在超时内优雅退出，exit=0 | stopped=yes exit=0
+
+T7 子进程失败时退出码透传
+PASS | T7 子进程退出码透传                    | 容器 exit=1（非法监听地址导致 app 启动失败）
+
+T8 不可写时 health=503 且 writable=false
+PASS | T8 不可写时降级                          | HTTP 503, writable=False
+
+恢复主容器用于后续用例
+PASS | T7b 容器重启后恢复服务                | HTTP 200
+
+T9 selftest 以业务 UID 验证
+PASS | T9a PUID=1000 selftest 通过                  | exit=0
+PASS | T9b 非属主 UID selftest 失败              | exit=1
+PASS | T9c selftest 输出 data_writable=true         | PUID 1000
+
+T10 符号链接逃逸
+PASS | T10a 逃逸被拒绝                           | exit=1
+PASS | T10b init 拒绝逃逸路径                   | exit=1
+
+A5 持久化验证
+PASS | A5 重建后数据仍在                       | db 存在, schema_version=8（与重建前一致）
+
+===== T12 汇总 =====
+RESULT: ALL PASS

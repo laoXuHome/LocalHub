@@ -1,0 +1,5 @@
+{
+  "status": "PASS",
+  "coverage": "P1-P4 + Docker real",
+  "unknown": "unit simulation only"
+}

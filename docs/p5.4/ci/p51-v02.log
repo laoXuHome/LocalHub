@@ -1,0 +1,35 @@
+--- P5.1 V-02 write rejection ---
+Unable to find image 'curlimages/curl:8.11.1' locally
+8.11.1: Pulling from curlimages/curl
+4ca545ee6d5d: Pulling fs layer
+fa22e15491be: Pulling fs layer
+38a8310d387e: Pulling fs layer
+4ca545ee6d5d: Download complete
+38a8310d387e: Download complete
+fa22e15491be: Download complete
+38a8310d387e: Pull complete
+4ca545ee6d5d: Pull complete
+fa22e15491be: Pull complete
+Digest: sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69
+Status: Downloaded newer image for curlimages/curl:8.11.1
+=== P5.1 V-02 write requests (must be denied) ===
+POST   /containers/create                                   -> 405 Method Not Allowed 
+POST   /containers/p51fixture/start                         -> 405 Method Not Allowed 
+POST   /containers/p51fixture/stop                          -> 405 Method Not Allowed 
+POST   /containers/p51fixture/restart                       -> 405 Method Not Allowed 
+DELETE /containers/p51fixture                               -> 405 Method Not Allowed 
+POST   /containers/p51fixture/exec                          -> 405 Method Not Allowed 
+DELETE /images/alpine:latest                                -> 405 Method Not Allowed 
+POST   /networks/create                                     -> 405 Method Not Allowed 
+POST   /networks/p51net/connect                             -> 405 Method Not Allowed 
+POST   /v1.52/containers/p51fixture/start                   -> 405 Method Not Allowed 
+DELETE /v1.52/images/alpine:latest                          -> 405 Method Not Allowed 
+=== read-only allowlist checks ===
+GET    /version                                             -> 200 {"Platform":{"Name":"Docker Engine - Community"},"Version":"29.4.2","ApiVersion":"1.54","MinAPIVersion":"1.40","Os":"linux","Arch":"amd64","
+GET    /containers/json                                     -> 200 [{"Id":"8371f8b29decf3efb6b18e2de855350187d97aa4100425f2d0556268a682698f","Names":["/zen_morse"],"Image":"curlimages/curl:8.11.1","ImageID":
+GET    /images/json                                         -> 403 Forbidden 
+GET    /containers/p51fixture/logs                          -> 403 Forbidden 
+pass=15 fail=0
+base_url=http://docker-socket-proxy:2375
+checked_at=2026-11-28T12:54:37Z
+V-02 PASS: all write requests denied; read allowlist as expected

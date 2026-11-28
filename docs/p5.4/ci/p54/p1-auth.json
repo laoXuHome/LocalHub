@@ -1,0 +1,6 @@
+{
+  "guest_whoami": 401,
+  "guest_bookmarks": 200,
+  "guest_auth_status": 200,
+  "guest_create": 401
+}

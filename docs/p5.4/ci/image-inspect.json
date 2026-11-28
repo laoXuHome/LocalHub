@@ -1,0 +1,170 @@
+[
+    {
+        "Id": "sha256:ece9b4bab91bf3e6b74f655962491e77c70de385d989918c16b144cef6ba64a0",
+        "RepoTags": [
+            "localhub:amd64"
+        ],
+        "RepoDigests": [
+            "localhub@sha256:ece9b4bab91bf3e6b74f655962491e77c70de385d989918c16b144cef6ba64a0"
+        ],
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2026-11-28T12:53:44.77417861Z",
+        "Config": {
+            "User": "0",
+            "ExposedPorts": {
+                "11030/tcp": {}
+            },
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt",
+                "LOCALHUB_DATA_DIR=/data",
+                "LOCALHUB_HTTP_ADDR=0.0.0.0",
+                "LOCALHUB_HTTP_PORT=11030",
+                "TZ=Asia/Shanghai",
+                "PUID=1000",
+                "PGID=1000"
+            ],
+            "Entrypoint": [
+                "/localhub"
+            ],
+            "WorkingDir": "/",
+            "Labels": {
+                "org.opencontainers.image.created": "2026-11-28T12:52:40Z",
+                "org.opencontainers.image.description": "本地优先的 NAS 书签与服务面板（P0 基础设施）",
+                "org.opencontainers.image.revision": "af22334f213bf6fef8b8305acd30942606028cfb",
+                "org.opencontainers.image.source": "https://github.com/laoXuHome/LocalHub",
+                "org.opencontainers.image.title": "LocalHub",
+                "org.opencontainers.image.version": "v0.1.0-p0"
+            },
+            "Healthcheck": {
+                "Test": [
+                    "CMD",
+                    "/localhub",
+                    "--healthcheck"
+                ],
+                "Interval": 30000000000,
+                "Timeout": 5000000000,
+                "StartPeriod": 10000000000,
+                "Retries": 3
+            }
+        },
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 5637139,
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:7223ea1323e8c1159ec17f07d35acc27bdd1cc2bc3ed425b44ef21dac9915db0",
+                "sha256:8fa10c0194df9b7c054c90dbe482585f768a54428fc90a5b78a0066a123b1bba",
+                "sha256:35b5ba6e08cdd034b8d1920f9c7203e5d66f258e1915f164a01de0af14f34710",
+                "sha256:114dde0fefebbca13165d0da9c500a66190e497a82a53dcaabc3172d630be1e9",
+                "sha256:4d049f83d9cf21d1f5cc0e11deaf36df02790d0e60c1a3829538fb4b61685368",
+                "sha256:af5aa97ebe6ce1604747ec1e21af7136ded391bcabe4acef882e718a87c86bcc",
+                "sha256:6f1cdceb6a3146f0ccb986521156bef8a422cdbb0863396f7f751f575ba308f4",
+                "sha256:bd3cdfae1d3fdd83a2231d608969b38b82349777c2fff9a7c12d54f8ac5c9b38",
+                "sha256:4cde6b0bb6f50a5f255eef7b2a42162c661cf776b803225dcac9a659e396bb6b",
+                "sha256:ad51d0769d16ba578106a177987dfe3d2e02c1668c852b795b2f6b024068242a",
+                "sha256:6e7fbcf090d09b73a4aa85f9dce690d0ace73877c150b7c56955487b6e7a822a",
+                "sha256:5904c32f457c96a16c8c68f5ccdf518c8138cd9e5971de9ce6d564fc481af222",
+                "sha256:b9ffa81032fd311efe546eb992059e163f983936fbfd2820dbe60bd9500da0e0"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-11-28T12:53:45.343516769Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:ece9b4bab91bf3e6b74f655962491e77c70de385d989918c16b144cef6ba64a0",
+            "size": 2747,
+            "annotations": {
+                "io.containerd.image.name": "docker.io/library/localhub:amd64",
+                "org.opencontainers.image.created": "2026-11-28T12:53:45Z",
+                "org.opencontainers.image.ref.name": "amd64"
+            }
+        }
+    },
+    {
+        "Id": "sha256:15174d7fb7778328784b3bd3a0fc751d000d14ea70b3ac4892c809810bc565aa",
+        "RepoTags": [
+            "localhub:arm64"
+        ],
+        "RepoDigests": [
+            "localhub@sha256:15174d7fb7778328784b3bd3a0fc751d000d14ea70b3ac4892c809810bc565aa"
+        ],
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2026-11-28T12:54:10.287231937Z",
+        "Config": {
+            "User": "0",
+            "ExposedPorts": {
+                "11030/tcp": {}
+            },
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt",
+                "LOCALHUB_DATA_DIR=/data",
+                "LOCALHUB_HTTP_ADDR=0.0.0.0",
+                "LOCALHUB_HTTP_PORT=11030",
+                "TZ=Asia/Shanghai",
+                "PUID=1000",
+                "PGID=1000"
+            ],
+            "Entrypoint": [
+                "/localhub"
+            ],
+            "WorkingDir": "/",
+            "Labels": {
+                "org.opencontainers.image.created": "2026-11-28T12:53:45Z",
+                "org.opencontainers.image.description": "本地优先的 NAS 书签与服务面板（P0 基础设施）",
+                "org.opencontainers.image.revision": "af22334f213bf6fef8b8305acd30942606028cfb",
+                "org.opencontainers.image.source": "https://github.com/laoXuHome/LocalHub",
+                "org.opencontainers.image.title": "LocalHub",
+                "org.opencontainers.image.version": "v0.1.0-p0"
+            },
+            "Healthcheck": {
+                "Test": [
+                    "CMD",
+                    "/localhub",
+                    "--healthcheck"
+                ],
+                "Interval": 30000000000,
+                "Timeout": 5000000000,
+                "StartPeriod": 10000000000,
+                "Retries": 3
+            }
+        },
+        "Architecture": "arm64",
+        "Os": "linux",
+        "Size": 5268073,
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:6fc9269a8b4d61cdd276e80d170e4caa1566efc1b9f42442fdad4f69836b3c4f",
+                "sha256:8fa10c0194df9b7c054c90dbe482585f768a54428fc90a5b78a0066a123b1bba",
+                "sha256:35b5ba6e08cdd034b8d1920f9c7203e5d66f258e1915f164a01de0af14f34710",
+                "sha256:114dde0fefebbca13165d0da9c500a66190e497a82a53dcaabc3172d630be1e9",
+                "sha256:4d049f83d9cf21d1f5cc0e11deaf36df02790d0e60c1a3829538fb4b61685368",
+                "sha256:af5aa97ebe6ce1604747ec1e21af7136ded391bcabe4acef882e718a87c86bcc",
+                "sha256:6f1cdceb6a3146f0ccb986521156bef8a422cdbb0863396f7f751f575ba308f4",
+                "sha256:bd3cdfae1d3fdd83a2231d608969b38b82349777c2fff9a7c12d54f8ac5c9b38",
+                "sha256:4cde6b0bb6f50a5f255eef7b2a42162c661cf776b803225dcac9a659e396bb6b",
+                "sha256:ad51d0769d16ba578106a177987dfe3d2e02c1668c852b795b2f6b024068242a",
+                "sha256:6e7fbcf090d09b73a4aa85f9dce690d0ace73877c150b7c56955487b6e7a822a",
+                "sha256:5904c32f457c96a16c8c68f5ccdf518c8138cd9e5971de9ce6d564fc481af222",
+                "sha256:2de778e628245a94c879c9f0dc07245ab597bc254358051d7e65276fb4cc8983"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-11-28T12:54:10.771816477Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:15174d7fb7778328784b3bd3a0fc751d000d14ea70b3ac4892c809810bc565aa",
+            "size": 2747,
+            "annotations": {
+                "io.containerd.image.name": "docker.io/library/localhub:arm64",
+                "org.opencontainers.image.created": "2026-11-28T12:54:10Z",
+                "org.opencontainers.image.ref.name": "arm64"
+            }
+        }
+    }
+]

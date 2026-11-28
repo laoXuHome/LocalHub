@@ -1,0 +1,16 @@
+CI run: 46146740489
+URL: https://github.com/laoXuHome/LocalHub/actions/runs/46146740489
+Commit: af22334f213bf6fef8b8305acd30942606028cfb
+Conclusion: success
+Created: 2026-11-28T12:51:43Z
+Updated: 2026-11-28T12:54:47Z
+
+Jobs:
+- 前端构建: success (job 140984340222)
+- Go 质量与测试: success (job 140984340482)
+- P5.4 AMD64 集成验收: success (job 140984515477)
+- 多架构镜像与 T12 验证: success (job 140984515558)
+
+Artifacts:
+- p54-verification-af22334f213bf6fef8b8305acd30942606028cfb (artifact 15263747282)
+- verification-af22334f213bf6fef8b8305acd30942606028cfb (artifact 15264111731)
