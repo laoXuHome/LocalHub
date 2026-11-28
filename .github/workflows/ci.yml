@@ -53,6 +53,140 @@ jobs:
         working-directory: web
         run: npm run build
 
+  p54:
+    name: P5.4 AMD64 集成验收
+    needs: [go, web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 安装 Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: 构建 linux/amd64 镜像
+        run: |
+          docker buildx build --platform linux/amd64 --load \
+            --build-arg VERSION="$VERSION" \
+            --build-arg COMMIT="${{ github.sha }}" \
+            --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --cache-from type=gha,scope=amd64 --cache-to type=gha,mode=max,scope=amd64 \
+            -t localhub:amd64 .
+      - name: Compose 启动与真实容器准备
+        run: |
+          rm -rf .p54-compose && mkdir -p .p54-compose ci-artifacts/p54
+          export LOCALHUB_IMAGE=localhub:amd64
+          export LOCALHUB_PORT=18091
+          export LOCALHUB_DATA_DIR="$PWD/.p54-compose"
+          export LOCALHUB_ADMIN_PASSWORD="P54-Smoke-Passw0rd!2026"
+          export LOCALHUB_DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+          docker compose config > ci-artifacts/p54/compose-config.txt
+          docker compose up -d 2>&1 | tee ci-artifacts/p54/compose-up.txt
+          for i in $(seq 1 60); do
+            code=$(curl -s --max-time 2 -o ci-artifacts/p54/health.json -w '%{http_code}' http://127.0.0.1:18091/health || true)
+            [ "$code" = "200" ] && break
+            sleep 1
+          done
+          echo "p54 /health HTTP $code" | tee ci-artifacts/p54/health.txt
+          test "$code" = "200"
+          docker rm -f p52-running p52-stopped >/dev/null 2>&1 || true
+          docker run -d --name p52-running --entrypoint sleep alpine:3.20 300 >/dev/null
+          docker create --name p52-stopped --entrypoint true alpine:3.20 >/dev/null
+          docker inspect p52-running p52-stopped > ci-artifacts/p54/fixture-inspect.json
+          docker compose ps -a | tee ci-artifacts/p54/compose-ps.txt
+      - name: P5.3 关联基础验收
+        env:
+          P53_BASE: http://127.0.0.1:18091
+          P53_ARTIFACT_DIR: ci-artifacts/p53
+          LOCALHUB_ADMIN_PASSWORD: P54-Smoke-Passw0rd!2026
+          P54_BASE: http://127.0.0.1:18091
+          P54_ARTIFACT_DIR: ci-artifacts/p54
+        run: |
+          python3 scripts/p53-ci.py setup 2>&1 | tee ci-artifacts/p54/p53.log; test ${PIPESTATUS[0]} -eq 0
+      - name: P5.4 整体回归（真实 Docker）
+        env:
+          P53_BASE: http://127.0.0.1:18091
+          P53_ARTIFACT_DIR: ci-artifacts/p53
+          LOCALHUB_ADMIN_PASSWORD: P54-Smoke-Passw0rd!2026
+          P54_BASE: http://127.0.0.1:18091
+          P54_ARTIFACT_DIR: ci-artifacts/p54
+        run: |
+          python3 scripts/p54-ci.py pre 2>&1 | tee -a ci-artifacts/p54/p54.log; test ${PIPESTATUS[0]} -eq 0
+      - name: 重启持久化
+        env:
+          P53_BASE: http://127.0.0.1:18091
+          P53_ARTIFACT_DIR: ci-artifacts/p53
+          LOCALHUB_ADMIN_PASSWORD: P54-Smoke-Passw0rd!2026
+        run: |
+          docker compose restart >/dev/null 2>&1
+          for i in $(seq 1 60); do
+            code=$(curl -s --max-time 2 -o /dev/null -w '%{http_code}' http://127.0.0.1:18091/health || true)
+            [ "$code" = "200" ] && break
+            sleep 1
+          done
+          test "$code" = "200"
+          python3 scripts/p53-ci.py after-restart 2>&1 | tee -a ci-artifacts/p54/p53.log; test ${PIPESTATUS[0]} -eq 0
+      - name: 容器状态变化
+        env:
+          P53_BASE: http://127.0.0.1:18091
+          P53_ARTIFACT_DIR: ci-artifacts/p53
+          LOCALHUB_ADMIN_PASSWORD: P54-Smoke-Passw0rd!2026
+        run: |
+          python3 scripts/p53-ci.py status 2>&1 | tee -a ci-artifacts/p54/p53.log; test ${PIPESTATUS[0]} -eq 0
+      - name: P5.1 V-02 只读边界
+        run: |
+          mkdir -p ci-artifacts/p54/v02
+          chmod 777 ci-artifacts/p54/v02
+          docker run --rm --network container:localhub --entrypoint sh \
+            -e P51_DOCKER_PROXY_URL=http://docker-socket-proxy:2375 \
+            -e P51_ARTIFACT_DIR=/out \
+            -v "$PWD/scripts:/scripts:ro" \
+            -v "$PWD/ci-artifacts/p54/v02:/out" \
+            curlimages/curl:8.11.1 /scripts/p51-v02.sh 2>&1 | tee ci-artifacts/p54/p51-v02.log
+          test ${PIPESTATUS[0]} -eq 0
+          grep -q 'pass=15 fail=0' ci-artifacts/p54/p51-v02.log
+      - name: Docker 故障与恢复
+        env:
+          P53_BASE: http://127.0.0.1:18091
+          P53_ARTIFACT_DIR: ci-artifacts/p53
+          LOCALHUB_ADMIN_PASSWORD: P54-Smoke-Passw0rd!2026
+          P54_BASE: http://127.0.0.1:18091
+          P54_ARTIFACT_DIR: ci-artifacts/p54
+        run: |
+          docker stop localhub-docker-socket-proxy >/dev/null
+          sleep 1
+          python3 scripts/p53-ci.py outage 2>&1 | tee -a ci-artifacts/p54/p53.log; test ${PIPESTATUS[0]} -eq 0
+          python3 scripts/p54-ci.py outage 2>&1 | tee -a ci-artifacts/p54/p54.log; test ${PIPESTATUS[0]} -eq 0
+          docker start localhub-docker-socket-proxy >/dev/null
+          curl -s --max-time 5 -c p54-cookie -o /dev/null -H 'Content-Type: application/json' \
+            -d "{\"username\":\"admin\",\"password\":\"$LOCALHUB_ADMIN_PASSWORD\"}" \
+            http://127.0.0.1:18091/api/auth/login
+          for i in $(seq 1 20); do
+            ok=$(curl -s --max-time 5 -b p54-cookie http://127.0.0.1:18091/api/admin/docker/status | grep -c '"status":"connected"' || true)
+            [ "$ok" = "1" ] && break
+            sleep 1
+          done
+          python3 scripts/p53-ci.py recovery 2>&1 | tee -a ci-artifacts/p54/p53.log; test ${PIPESTATUS[0]} -eq 0
+      - name: 删除与同名不同 ID
+        env:
+          P53_BASE: http://127.0.0.1:18091
+          P53_ARTIFACT_DIR: ci-artifacts/p53
+          LOCALHUB_ADMIN_PASSWORD: P54-Smoke-Passw0rd!2026
+          P54_BASE: http://127.0.0.1:18091
+          P54_ARTIFACT_DIR: ci-artifacts/p54
+        run: |
+          python3 scripts/p53-ci.py remove 2>&1 | tee -a ci-artifacts/p54/p53.log; test ${PIPESTATUS[0]} -eq 0
+          python3 scripts/p54-ci.py final 2>&1 | tee -a ci-artifacts/p54/p54.log; test ${PIPESTATUS[0]} -eq 0
+      - name: 清理
+        if: always()
+        run: |
+          docker rm -f p52-running p52-stopped p54-restarting >/dev/null 2>&1 || true
+          docker compose down 2>&1 | tee -a ci-artifacts/p54/compose-up.txt || true
+      - name: 上传 P5.4 验收记录
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p54-verification-${{ github.sha }}
+          path: ci-artifacts
+          if-no-files-found: warn
+
   image:
     name: 多架构镜像与 T12 验证
     needs: [go, web]
