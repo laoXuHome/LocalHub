@@ -20,6 +20,7 @@ import { Toast, type ToastMessage, type ToastTone } from './components/Toast'
 import { BookmarkDrawer } from './components/BookmarkDrawer'
 import { ConfirmDialog, type ConfirmRequest } from './components/ConfirmDialog'
 import { EditToolbar } from './components/EditToolbar'
+import { SpotlightSearch } from './components/SpotlightSearch'
 import {
   appendEntry,
   bookmarksByLayout,
@@ -94,6 +95,7 @@ export default function App() {
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [reloadKey, setReloadKey] = useState(0)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('localhub.sidebar') === 'collapsed'
@@ -209,8 +211,16 @@ export default function App() {
     [notify],
   )
 
-  const openAccount = useCallback(() => setAccountOpen(true), [])
+  const openAccount = useCallback(() => {
+    setSearchOpen(false)
+    setAccountOpen(true)
+  }, [])
   const closeAccount = useCallback(() => setAccountOpen(false), [])
+  const openSearch = useCallback(() => {
+    setAccountOpen(false)
+    setSearchOpen(true)
+  }, [])
+  const closeSearch = useCallback(() => setSearchOpen(false), [])
 
   function openNavigation(label: string) {
     notify(`「${label}」将在后续批次开放`)
@@ -258,6 +268,7 @@ export default function App() {
 
   const beginEditing = useCallback(() => {
     if (!isAdmin) return
+    setSearchOpen(false)
     resetEditor(bookmarks, serverLayout)
   }, [isAdmin, bookmarks, serverLayout])
 
@@ -537,7 +548,10 @@ export default function App() {
                 className={`nav-item${active ? ' is-active' : ''}`}
                 aria-current={active ? 'page' : undefined}
                 title={collapsed ? item.label : undefined}
-                onClick={() => !active && openNavigation(item.label)}
+                onClick={() => {
+                  if (item.id === 'search') openSearch()
+                  else if (!active) openNavigation(item.label)
+                }}
               >
                 <Icon size={19} />
                 <span>{item.label}</span>
@@ -588,17 +602,25 @@ export default function App() {
               <h1 id="page-title">书签</h1>
               {editing && <span className="heading-mode">{preview ? '预览模式' : '编辑模式'}</span>}
             </div>
-            {loadState === 'ready' && isAdmin && !editing && (
-              <button type="button" className="edit-entry" onClick={beginEditing}>
-                <PencilIcon size={16} />
-                编辑首页
-              </button>
-            )}
-            {loadState === 'error' && (
-              <button type="button" className="icon-button" onClick={() => refresh()} aria-label="重新加载书签" title="重新加载">
-                <RefreshIcon size={18} />
-              </button>
-            )}
+            <div className="page-actions">
+              {loadState === 'ready' && !editing && (
+                <button type="button" className="search-entry" onClick={openSearch} aria-label="搜索书签">
+                  <SearchIcon size={16} />
+                  搜索
+                </button>
+              )}
+              {loadState === 'ready' && isAdmin && !editing && (
+                <button type="button" className="edit-entry" onClick={beginEditing}>
+                  <PencilIcon size={16} />
+                  编辑首页
+                </button>
+              )}
+              {loadState === 'error' && (
+                <button type="button" className="icon-button" onClick={() => refresh()} aria-label="重新加载书签" title="重新加载">
+                  <RefreshIcon size={18} />
+                </button>
+              )}
+            </div>
           </header>
 
           {editing && (
@@ -702,6 +724,7 @@ export default function App() {
               aria-current={active ? 'page' : undefined}
               onClick={() => {
                 if (item.id === 'account') openAccount()
+                else if (item.id === 'search') openSearch()
                 else if (!active) openNavigation(item.label)
               }}
             >
@@ -712,6 +735,7 @@ export default function App() {
         })}
       </nav>
 
+      {searchOpen && <SpotlightSearch bookmarks={bookmarks} onClose={closeSearch} />}
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
       {accountOpen && <AccountSheet auth={auth} onClose={closeAccount} onRefresh={refresh} />}
